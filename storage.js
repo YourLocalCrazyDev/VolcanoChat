@@ -1,110 +1,158 @@
 /* ============================================================
-   VolcanoChat — Temporary Storage (No LocalStorage Version)
+   VolcanoChat — Persistent Storage (LocalStorage Version)
    ============================================================ */
 
-/*
-    All data is stored in RAM only.
-    Refreshing the page will wipe everything.
-    Perfect for preventing tampering on GitHub Pages.
-*/
+const STORAGE_KEY = "VolcanoChat_Data_v1";
 
-const Storage = {
-    accounts: {},          // { username: { password, avatar, mood } }
-    activeUser: null,      // currently logged-in username
+function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Storage));
+}
 
-    communities: {},       // { slug: { ...communityData } }
-    comments: {},          // { slug: [ commentObjects ] }
+function loadState() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
 
-    votes: {},             // { "username|commentId": 1 or -1 }
-    reports: [],           // all reports
-    warnings: {},          // { username: count }
-    bans: {},              // { username: { until: timestamp|null } }
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
 
-    /* -------------------------
-       RESET EVERYTHING
-    ------------------------- */
-    resetAll() {
-        this.accounts = {};
-        this.activeUser = null;
-        this.communities = {};
-        this.comments = {};
-        this.votes = {};
-        this.reports = [];
-        this.warnings = {};
-        this.bans = {};
-    },
+const loaded = loadState();
 
-    /* -------------------------
-       ACCOUNTS
-    ------------------------- */
-    createAccount(username, password, avatar) {
-        if (this.accounts[username]) return false;
-        this.accounts[username] = {
+const Storage = loaded || {
+    accounts: {},          
+    activeUser: null,      
+    communities: {},       
+    comments: {},          
+    votes: {},             
+    reports: [],           
+    warnings: {},          
+    bans: {},              
+};
+
+/* -------------------------
+   SAVE AFTER EVERY CHANGE
+------------------------- */
+function autosave(fn) {
+    fn();
+    saveState();
+}
+
+/* -------------------------
+   RESET EVERYTHING
+------------------------- */
+Storage.resetAll = function () {
+    autosave(() => {
+        Storage.accounts = {};
+        Storage.activeUser = null;
+        Storage.communities = {};
+        Storage.comments = {};
+        Storage.votes = {};
+        Storage.reports = [];
+        Storage.warnings = {};
+        Storage.bans = {};
+    });
+};
+
+/* -------------------------
+   ACCOUNTS
+------------------------- */
+Storage.createAccount = function (username, password, avatar) {
+    if (Storage.accounts[username]) return false;
+
+    autosave(() => {
+        Storage.accounts[username] = {
             password,
             avatar,
             mood: ""
         };
-        return true;
-    },
+    });
 
-    login(username, password) {
-        const acc = this.accounts[username];
-        if (!acc) return "NO_ACCOUNT";
-        if (acc.password !== password) return "WRONG_PASSWORD";
-        this.activeUser = username;
-        return "OK";
-    },
+    return true;
+};
 
-    logout() {
-        this.activeUser = null;
-    },
+Storage.login = function (username, password) {
+    const acc = Storage.accounts[username];
+    if (!acc) return "NO_ACCOUNT";
+    if (acc.password !== password) return "WRONG_PASSWORD";
 
-    updateAccount(username, data) {
-        if (!this.accounts[username]) return;
-        Object.assign(this.accounts[username], data);
+    autosave(() => {
+        Storage.activeUser = username;
+    });
 
-        // also update all comments made by the user
-        for (const slug in this.comments) {
-            this.comments[slug] = this.comments[slug].map(c =>
+    return "OK";
+};
+
+Storage.logout = function () {
+    autosave(() => {
+        Storage.activeUser = null;
+    });
+};
+
+Storage.updateAccount = function (username, data) {
+    if (!Storage.accounts[username]) return;
+
+    autosave(() => {
+        Object.assign(Storage.accounts[username], data);
+
+        // update comments by the user
+        for (const slug in Storage.comments) {
+            Storage.comments[slug] = Storage.comments[slug].map(c =>
                 c.user === username ? { ...c, ...data } : c
             );
         }
-    },
+    });
+};
 
-    /* -------------------------
-       COMMUNITIES
-    ------------------------- */
-    createCommunity(slug, data) {
-        if (this.communities[slug]) return false;
-        this.communities[slug] = data;
-        this.comments[slug] = [];
-        return true;
-    },
+/* -------------------------
+   COMMUNITIES
+------------------------- */
+Storage.createCommunity = function (slug, data) {
+    if (Storage.communities[slug]) return false;
 
-    addComment(slug, commentObj) {
-        if (!this.comments[slug]) this.comments[slug] = [];
-        this.comments[slug].push(commentObj);
-    },
+    autosave(() => {
+        Storage.communities[slug] = data;
+        Storage.comments[slug] = [];
+    });
 
-    /* -------------------------
-       VOTING
-    ------------------------- */
-    setVote(key, value) {
-        this.votes[key] = value;
-    },
+    return true;
+};
 
-    /* -------------------------
-       REPORTS / MODERATION
-    ------------------------- */
-    addReport(reportObj) {
-        this.reports.push(reportObj);
-    },
+Storage.addComment = function (slug, commentObj) {
+    autosave(() => {
+        if (!Storage.comments[slug]) Storage.comments[slug] = [];
+        Storage.comments[slug].push(commentObj);
+    });
+};
 
-    banUser(username, until) {
-        this.bans[username] = { until };
-    },
+/* -------------------------
+   VOTING
+------------------------- */
+Storage.setVote = function (key, value) {
+    autosave(() => {
+        Storage.votes[key] = value;
+    });
+};
 
-    warnUser(username) {
-        this.warnings[username] = (this.warnings[username] || 0) + 1;
-    }
+/* -------------------------
+   REPORTING + MODERATION
+------------------------- */
+Storage.addReport = function (reportObj) {
+    autosave(() => {
+        Storage.reports.push(reportObj);
+    });
+};
+
+Storage.banUser = function (username, until) {
+    autosave(() => {
+        Storage.bans[username] = { until };
+    });
+};
+
+Storage.warnUser = function (username) {
+    autosave(() => {
+        Storage.warnings[username] = (Storage.warnings[username] || 0) + 1;
+    });
 };
