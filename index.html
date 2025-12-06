@@ -1,82 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VolcanoChat 🌋</title>
-
-    <!-- Tailwind (CDN OK for now) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="styles.css">
+    <title>VolcanoChat</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen bg-orange-50 text-slate-900">
+<body>
 
-    <!-- ============================================================
-         MAIN APP ROOT
-    ============================================================ -->
-    <div id="app-root" class="p-4"></div>
+<div id="auth-screen">
+    <h1>VolcanoChat</h1>
 
-    <!-- ============================================================
-         SETTINGS OVERLAY
-    ============================================================ -->
-    <div id="settings-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="settings-container"
-            class="bg-slate-900 text-white p-6 rounded-xl shadow-xl flex max-h-[80vh] overflow-y-auto">
-        </div>
+    <h2>Sign Up</h2>
+    <input id="signupDisplayName" placeholder="Display Name">
+    <input id="signupUsername" placeholder="Username">
+    <input id="signupPassword" placeholder="Password" type="password">
+    <button id="signupBtn">Create Account</button>
+
+    <h2>Login</h2>
+    <input id="loginUsername" placeholder="Username">
+    <input id="loginPassword" placeholder="Password" type="password">
+    <button id="loginBtn">Login</button>
+</div>
+
+<div id="main-screen" class="hidden">
+
+    <!-- Profile Bar -->
+    <div id="profileBar">
+        <h2 id="profileDisplayName"></h2>
+        <p id="profileUsername"></p>
+        <button id="logoutBtn">Logout</button>
     </div>
 
-    <!-- ============================================================
-         NOTIFICATIONS OVERLAY
-    ============================================================ -->
-    <div id="notifications-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="notifications-container"
-            class="bg-black bg-opacity-70 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto text-white relative">
-        </div>
+    <!-- Post Creation -->
+    <div id="createPost">
+        <textarea id="postText" placeholder="Share something..."></textarea>
+        <button id="postBtn">Post</button>
     </div>
 
-    <!-- ============================================================
-         PROFILE OVERLAY
-    ============================================================ -->
-    <div id="profile-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="profile-container"
-            class="bg-black bg-opacity-40 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto text-white relative">
-        </div>
-    </div>
+    <!-- Posts -->
+    <div id="postContainer"></div>
+</div>
 
-    <!-- ============================================================
-         CREATE COMMUNITY OVERLAY
-    ============================================================ -->
-    <div id="create-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="create-container"
-            class="bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto text-white relative">
-        </div>
-    </div>
+<!-- Roast Menu -->
+<div id="roastMenu" class="roast-menu hidden">
+    <p class="roast-option">Light Roast</p>
+    <p class="roast-option">Medium Roast</p>
+    <p class="roast-option">Dark Roast</p>
+    <p class="roast-option">Nuclear Roast</p>
+</div>
 
-    <!-- ============================================================
-         TOAST BOX (created dynamically, but empty div is fine)
-    ============================================================ -->
-    <div id="toast-box" style="display:none;"></div>
-
-    <!-- ============================================================
-         SCRIPT ORDER (CRITICAL)
-         1. storage.js
-         2. logic.js
-         3. message.js
-         4. settings.js
-         5. ui.js (must load last)
-    ============================================================ -->
-
-    <script src="storage.js"></script>
-    <script src="logic.js"></script>
-    <script src="message.js"></script>
-    <script src="settings.js"></script>
-    <script src="ui.js"></script>
-
+<script src="script.js"></script>
 </body>
 </html>
