@@ -1,102 +1,84 @@
 /* ============================================================
-   VolcanoChat — Persistent Storage (Namespaced LocalStorage)
+   VolcanoChat — Persistent LocalStorage Storage Engine
    ============================================================ */
 
-const STORAGE_KEY = "VolcanoChat_DATA";
-
-/*
-    Data saved inside localStorage looks like this:
-
-    {
-        accounts: { username: { password, avatar, mood } },
-        activeUser: "name",
-        communities: { slug: { ... } },
-        comments: { slug: [ ... ] },
-        votes: { "user|commentId": 1/-1 },
-        reports: [ ... ],
-        warnings: { user: count },
-        bans: { user: { until } }
-    }
-*/
+const STORAGE_KEY = "VolcanoChat_Data";
 
 const Storage = {
-    data: {
-        accounts: {},
-        activeUser: null,
-        communities: {},
-        comments: {},
-        votes: {},
-        reports: [],
-        warnings: {},
-        bans: {}
+
+    accounts: {},
+    activeUser: null,
+
+    communities: {},
+    comments: {},
+    votes: {},
+    reports: [],
+    warnings: {},
+    bans: {},
+
+    /* ------------------------------------------------------------
+       SAVE EVERYTHING TO LOCALSTORAGE
+    ------------------------------------------------------------ */
+    save() {
+        const data = {
+            accounts: this.accounts,
+            activeUser: this.activeUser,
+            communities: this.communities,
+            comments: this.comments,
+            votes: this.votes,
+            reports: this.reports,
+            warnings: this.warnings,
+            bans: this.bans
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     },
 
     /* ------------------------------------------------------------
-       LOAD + SAVE
+       LOAD EVERYTHING FROM LOCALSTORAGE
     ------------------------------------------------------------ */
     load() {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            this.save();
-            return;
-        }
+        if (!raw) return; // first time user
 
         try {
-            this.data = JSON.parse(raw);
-        } catch (e) {
-            console.error("❌ Storage corrupted — resetting.", e);
-            this.resetAll();
+            const data = JSON.parse(raw);
+
+            this.accounts = data.accounts || {};
+            this.activeUser = data.activeUser || null;
+            this.communities = data.communities || {};
+            this.comments = data.comments || {};
+            this.votes = data.votes || {};
+            this.reports = data.reports || [];
+            this.warnings = data.warnings || {};
+            this.bans = data.bans || {};
+
+        } catch (err) {
+            console.error("Storage load failed:", err);
         }
     },
 
-    save() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
-    },
-
     /* ------------------------------------------------------------
-       GLOBAL RESET
+       RESET EVERYTHING
     ------------------------------------------------------------ */
     resetAll() {
-        this.data = {
-            accounts: {},
-            activeUser: null,
-            communities: {},
-            comments: {},
-            votes: {},
-            reports: [],
-            warnings: {},
-            bans: {}
-        };
-        this.save();
+        localStorage.removeItem(STORAGE_KEY);
+        this.accounts = {};
+        this.activeUser = null;
+        this.communities = {};
+        this.comments = {};
+        this.votes = {};
+        this.reports = [];
+        this.warnings = {};
+        this.bans = {};
     },
 
     /* ------------------------------------------------------------
-       GETTERS
+       ACCOUNT HANDLING
     ------------------------------------------------------------ */
-    get accounts() { return this.data.accounts; },
-    get activeUser() { return this.data.activeUser; },
-    get communities() { return this.data.communities; },
-    get comments() { return this.data.comments; },
-    get votes() { return this.data.votes; },
-    get reports() { return this.data.reports; },
-    get warnings() { return this.data.warnings; },
-    get bans() { return this.data.bans; },
-
-    /* ------------------------------------------------------------
-       SETTERS
-    ------------------------------------------------------------ */
-    set activeUser(v) {
-        this.data.activeUser = v;
-        this.save();
-    },
-
-    /* ============================================================
-       ACCOUNT SYSTEM
-    ============================================================ */
     createAccount(username, password, avatar) {
-        if (this.data.accounts[username]) return false;
+        if (this.accounts[username]) return false;
 
-        this.data.accounts[username] = {
+        this.accounts[username] = {
             password,
             avatar,
             mood: ""
@@ -107,28 +89,28 @@ const Storage = {
     },
 
     login(username, password) {
-        const acc = this.data.accounts[username];
+        const acc = this.accounts[username];
         if (!acc) return "NO_ACCOUNT";
         if (acc.password !== password) return "WRONG_PASSWORD";
 
-        this.data.activeUser = username;
+        this.activeUser = username;
         this.save();
         return "OK";
     },
 
     logout() {
-        this.data.activeUser = null;
+        this.activeUser = null;
         this.save();
     },
 
     updateAccount(username, data) {
-        if (!this.data.accounts[username]) return;
+        if (!this.accounts[username]) return;
 
-        Object.assign(this.data.accounts[username], data);
+        Object.assign(this.accounts[username], data);
 
-        // update comments by that user
-        for (const slug in this.data.comments) {
-            this.data.comments[slug] = this.data.comments[slug].map(c =>
+        // update avatar/mood across comments too:
+        for (const slug in this.comments) {
+            this.comments[slug] = this.comments[slug].map(c =>
                 c.user === username ? { ...c, ...data } : c
             );
         }
@@ -136,58 +118,53 @@ const Storage = {
         this.save();
     },
 
-    /* ============================================================
+    /* ------------------------------------------------------------
        COMMUNITIES
-    ============================================================ */
+    ------------------------------------------------------------ */
     createCommunity(slug, data) {
-        if (this.data.communities[slug]) return false;
-
-        this.data.communities[slug] = data;
-        this.data.comments[slug] = [];
-
+        if (this.communities[slug]) return false;
+        this.communities[slug] = data;
+        this.comments[slug] = [];
         this.save();
         return true;
     },
 
     addComment(slug, commentObj) {
-        if (!this.data.comments[slug]) this.data.comments[slug] = [];
-        this.data.comments[slug].push(commentObj);
+        if (!this.comments[slug]) this.comments[slug] = [];
+        this.comments[slug].push(commentObj);
         this.save();
     },
 
-    /* ============================================================
-       VOTES
-    ============================================================ */
+    /* ------------------------------------------------------------
+       VOTING
+    ------------------------------------------------------------ */
     setVote(key, value) {
-        this.data.votes[key] = value;
+        this.votes[key] = value;
         this.save();
     },
 
-    /* ============================================================
-       REPORTS + BANS + WARNINGS
-    ============================================================ */
-    addReport(reportObj) {
-        this.data.reports.push(reportObj);
+    /* ------------------------------------------------------------
+       REPORTS / MODERATION
+    ------------------------------------------------------------ */
+    addReport(r) {
+        this.reports.push(r);
         this.save();
     },
 
     banUser(username, until) {
-        this.data.bans[username] = { until };
+        this.bans[username] = { until };
         this.save();
     },
 
     warnUser(username) {
-        this.data.warnings[username] = (this.data.warnings[username] || 0) + 1;
+        this.warnings[username] = (this.warnings[username] || 0) + 1;
         this.save();
     }
 };
 
 /* ------------------------------------------------------------
-   Load data immediately on script start
+   LOAD DATA IMMEDIATELY ON SCRIPT LOAD
 ------------------------------------------------------------ */
 Storage.load();
 
-/* ------------------------------------------------------------
-   Export globally
------------------------------------------------------------- */
 window.Storage = Storage;
