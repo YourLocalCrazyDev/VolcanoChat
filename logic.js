@@ -1,5 +1,5 @@
 /* ============================================================
-   VolcanoChat — CORE LOGIC SYSTEM (Display Name Version)
+   VolcanoChat — CORE LOGIC SYSTEM
 ============================================================ */
 
 const ADMIN = "johnny big balls";
@@ -90,17 +90,13 @@ function isBanned(username) {
 }
 
 /* ------------------------------------------------------------
-   AUTH (now supports Display Name)
+   AUTH
 ------------------------------------------------------------ */
 
 const Auth = {
-    signup(username, password, avatar, displayName) {
+    signup(username, password, avatar) {
         if (!username.trim() || !password.trim()) return "INVALID";
-
-        // Use username as default display name if none provided
-        const dn = displayName?.trim() || username.trim();
-
-        if (!Storage.createAccount(username, password, avatar, dn))
+        if (!Storage.createAccount(username, password, avatar))
             return "EXISTS";
 
         Storage.activeUser = username;
@@ -124,31 +120,24 @@ const Auth = {
     changeAvatar(avatar) {
         if (!Storage.activeUser) return;
         Storage.updateAccount(Storage.activeUser, { avatar });
-    },
-
-    changeDisplayName(displayName) {
-        if (!Storage.activeUser) return;
-        Storage.updateAccount(Storage.activeUser, { displayName });
     }
 };
 
 /* ------------------------------------------------------------
-   ROAST SYSTEM (now targets display names)
+   ROAST SYSTEM
 ------------------------------------------------------------ */
 
 const Roast = {
     normal() {
         const u = Storage.activeUser;
         if (!u) return "";
-        const dn = Storage.accounts[u].displayName;
-        return roasts[Math.floor(Math.random() * roasts.length)](dn);
+        return roasts[Math.floor(Math.random() * roasts.length)](u);
     },
 
     volcanic() {
         const u = Storage.activeUser;
         if (!u) return "";
-        const dn = Storage.accounts[u].displayName;
-        return volcanicRoasts[Math.floor(Math.random() * volcanicRoasts.length)](dn);
+        return volcanicRoasts[Math.floor(Math.random() * volcanicRoasts.length)](u);
     }
 };
 
@@ -205,7 +194,7 @@ const Community = {
 };
 
 /* ------------------------------------------------------------
-   COMMENTS (now store displayName)
+   COMMENTS
 ------------------------------------------------------------ */
 
 const Comments = {
@@ -218,7 +207,6 @@ const Comments = {
         const obj = {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2),
             user: u,
-            displayName: acc.displayName,
             avatar: acc.avatar,
             mood: acc.mood,
             text,
