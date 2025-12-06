@@ -1,10 +1,53 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>My App</title>
-  </head>
-  <body>
-    <script src="App.js"></script>
-  </body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VolcanoChat 🌋</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/VolcanoChat/styles.css" />
+</head>
+
+<body class="min-h-screen bg-orange-50 text-slate-900">
+
+    <!-- MAIN APP ROOT -->
+    <div id="app-root"></div>
+
+    <!-- SETTINGS OVERLAY -->
+    <div id="settings-overlay" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
+        <div id="settings-container"></div>
+    </div>
+
+    <!-- PROFILE OVERLAY -->
+    <div id="profile-overlay" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
+        <div id="profile-container"></div>
+    </div>
+
+    <!-- NOTIFICATIONS OVERLAY -->
+    <div id="notifications-overlay" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
+        <div id="notifications-container"></div>
+    </div>
+
+    <!-- CREATE COMMUNITY OVERLAY -->
+    <div id="create-overlay" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
+        <div id="create-container"></div>
+    </div>
+
+    <!-- STORAGE → must load before logic -->
+    <script src="/VolcanoChat/storage.js"></script>
+
+    <!-- LOGIC (auth, comments, votes, bans, sorting, community system) -->
+    <script src="/VolcanoChat/logic.js"></script>
+
+    <!-- UI (DOM creation, modal handling, rendering) -->
+    <script src="/VolcanoChat/ui.js"></script>
+
+    <!-- APP (glue code, initialization, event listeners) -->
+    <script src="/VolcanoChat/app.js"></script>
+
+</body>
 </html>
