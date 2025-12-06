@@ -1,28 +1,13 @@
 /* ============================================================
-   VolcanoChat — SETTINGS OVERLAY UI (Display Name Edition)
-   Handles:
-   - Avatar selection
-   - Mood input
-   - Display Name editing (NEW)
-   - Theme tab
-   - Admin tab
-   - About tab
-   - Logout
+   VolcanoChat — SETTINGS OVERLAY UI
 ============================================================ */
 
-/* ------------------------------------------------------------
-   IMPORTANT:
-   Use global Logic — do NOT redeclare it.
------------------------------------------------------------- */
 Logic = window.VolcanoLogic;
 
 window.SettingsUI = {
     open: false,
-    tab: "profile",   // profile | theme | admin | about
+    tab: "profile",
 
-    /* ------------------------------------------------------------
-       PUBLIC SHOW/HIDE
-    ------------------------------------------------------------ */
     show() {
         this.open = true;
         this.tab = "profile";
@@ -39,29 +24,27 @@ window.SettingsUI = {
         this.render();
     },
 
-    /* ------------------------------------------------------------
-       RENDER ENTRY POINT
-    ------------------------------------------------------------ */
     render() {
-        const o = document.getElementById("settings-overlay");
-        const c = document.getElementById("settings-container");
+        const overlay = document.getElementById("settings-overlay");
+        const container = document.getElementById("settings-container");
 
-        o.classList.toggle("hidden", !this.open);
+        overlay.classList.toggle("hidden", !this.open);
 
         if (!this.open) {
-            c.innerHTML = "";
+            container.innerHTML = "";
             return;
         }
 
-        c.innerHTML = "";
-        c.className = "flex";
+        container.innerHTML = "";
+        container.className =
+            "flex bg-slate-900 text-white p-6 rounded-xl shadow-xl max-h-[80vh] overflow-y-auto";
 
-        c.appendChild(this.renderSidebar());
-        c.appendChild(this.renderPanel());
+        container.appendChild(this.renderSidebar());
+        container.appendChild(this.renderPanel());
     },
 
     /* ============================================================
-       SIDEBAR (left column)
+       SIDEBAR
     ============================================================= */
     renderSidebar() {
         const sb = document.createElement("div");
@@ -84,7 +67,6 @@ window.SettingsUI = {
 
         sb.appendChild(makeBtn("about", "ABOUT"));
 
-        // logout
         const logout = document.createElement("div");
         logout.textContent = "LOG OUT";
         logout.className = "settingsTabButton";
@@ -93,13 +75,13 @@ window.SettingsUI = {
             this.hide();
             renderApp();
         };
-        sb.appendChild(logout);
 
+        sb.appendChild(logout);
         return sb;
     },
 
     /* ============================================================
-       RIGHT PANEL HANDLER
+       RIGHT PANEL
     ============================================================= */
     renderPanel() {
         const panel = document.createElement("div");
@@ -120,7 +102,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       PROFILE TAB — Updated with Display Name field
+       PROFILE TAB
     ============================================================= */
     renderProfile() {
         const user = Logic.Storage.activeUser;
@@ -133,25 +115,11 @@ window.SettingsUI = {
         h.className = "text-3xl mb-4";
         box.appendChild(h);
 
-        /* ---- DISPLAY NAME ---- */
-        const dnLabel = document.createElement("p");
-        dnLabel.textContent = "Display Name:";
-        dnLabel.className = "mb-1";
-        box.appendChild(dnLabel);
+        // avatar
+        const avLabel = document.createElement("p");
+        avLabel.textContent = "Choose Avatar:";
+        box.appendChild(avLabel);
 
-        const dnInput = document.createElement("input");
-        dnInput.value = acc.displayName || user;
-        dnInput.placeholder = "Display Name";
-        dnInput.className = "text-black border rounded px-3 py-2 w-64 mb-4";
-        dnInput.oninput = e => {
-            Logic.Auth.changeDisplayName(e.target.value.trim());
-            renderApp();
-            this.render(); // update live
-        };
-        box.appendChild(dnInput);
-
-        /* ---- AVATAR ---- */
-        box.appendChild(document.createTextNode("Choose Avatar:"));
         const avBox = document.createElement("div");
         avBox.className =
             "flex flex-wrap gap-2 text-3xl justify-center mb-6 max-h-40 overflow-y-auto";
@@ -171,24 +139,25 @@ window.SettingsUI = {
 
         box.appendChild(avBox);
 
-        /* ---- MOOD ---- */
+        // mood
         const moodLabel = document.createElement("p");
         moodLabel.textContent = "Mood:";
         moodLabel.className = "mb-1";
         box.appendChild(moodLabel);
 
-        const moodInput = document.createElement("input");
-        moodInput.value = acc.mood || "";
-        moodInput.placeholder = "Enter your mood";
-        moodInput.className = "text-black border rounded px-3 py-2 w-64";
-        moodInput.oninput = e => {
+        const mood = document.createElement("input");
+        mood.value = acc.mood || "";
+        mood.placeholder = "Type your mood";
+        mood.className = "text-black border rounded px-3 py-2 w-64";
+        mood.oninput = e => {
             Logic.Auth.setMood(e.target.value);
             renderApp();
         };
-        box.appendChild(moodInput);
+        box.appendChild(mood);
 
         return box;
     },
+
 
     /* ============================================================
        THEME TAB
@@ -201,11 +170,6 @@ window.SettingsUI = {
         h.className = "text-3xl mb-4";
         box.appendChild(h);
 
-        const p = document.createElement("p");
-        p.textContent = "Choose your lava style.";
-        p.className = "mb-2 text-sm";
-        box.appendChild(p);
-
         const row = document.createElement("div");
         row.className = "flex gap-3";
 
@@ -213,7 +177,9 @@ window.SettingsUI = {
             const b = document.createElement("button");
             b.textContent = label;
             b.className =
-                `px-4 py-2 rounded ${UI.theme === id ? "bg-orange-400" : "bg-orange-200 text-black"}`;
+                `px-4 py-2 rounded ${
+                    UI.theme === id ? "bg-orange-400" : "bg-orange-200 text-black"
+                }`;
             b.onclick = () => {
                 UI.theme = id;
                 localStorage.setItem("themeMode", id);
@@ -243,7 +209,7 @@ window.SettingsUI = {
         box.appendChild(h);
 
         const p = document.createElement("p");
-        p.textContent = "Moderation & lava control.";
+        p.textContent = "Moderation tools.";
         p.className = "mb-2 text-sm";
         box.appendChild(p);
 
@@ -251,7 +217,7 @@ window.SettingsUI = {
         btn.textContent = "Clear All Comments";
         btn.className = "bg-red-500 px-6 py-2 rounded text-lg";
         btn.onclick = () => {
-            Logic.Storage.comments = {};
+            Logic.Mod.clearAllComments();
             renderApp();
             this.render();
         };
@@ -273,7 +239,7 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a chaotic, lava-powered discussion pit. Join volcanoes, roast friends, post comments, and cause eruptions.";
+            "VolcanoChat is a chaotic lava-powered comment pit. No data is saved. Enjoy the eruption.";
         p.className = "max-w-md mx-auto text-center";
         box.appendChild(p);
 
