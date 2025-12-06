@@ -5,78 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VolcanoChat 🌋</title>
 
-    <!-- TailwindCSS CDN -->
+    <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <style>
-        /* Shake animation used for volcanic roast */
-        .shake {
-            animation: shakeAnim 0.5s ease-in-out;
-        }
-        @keyframes shakeAnim {
-            0% { transform: translate(0,0); }
-            25% { transform: translate(-8px,0); }
-            50% { transform: translate(8px,0); }
-            75% { transform: translate(-8px,0); }
-            100% { transform: translate(0,0); }
-        }
-
-        /* Overlay styling shared by multiple windows */
-        .overlayBase {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(8px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-
-        /* Settings layout */
-        .settingsSidebar {
-            width: 150px;
-            background: rgba(0,0,0,0.4);
-            padding: 20px;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .settingsTabButton {
-            padding: 12px;
-            background: rgba(255,255,255,0.18);
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 18px;
-        }
-        .settingsTabButton.active {
-            background: rgba(255,255,255,0.5);
-            font-weight: bold;
-        }
-
-        .settingsPanel {
-            width: 60%;
-            height: 70%;
-            background: rgba(0,0,0,0.6);
-            margin-left: 25px;
-            border-radius: 15px;
-            padding: 25px;
-            position: relative;
-            overflow-y: auto;
-        }
-
-        .closeButton {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            font-size: 30px;
-            cursor: pointer;
-        }
-    </style>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body class="min-h-screen bg-orange-50 text-slate-900">
@@ -85,35 +18,35 @@
     <div id="app-root"></div>
 
     <!-- SETTINGS OVERLAY -->
-    <div id="settings-overlay" class="hidden overlayBase">
+    <div id="settings-overlay" 
+         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="settings-container"></div>
     </div>
 
     <!-- PROFILE OVERLAY -->
-    <div id="profile-overlay" class="hidden overlayBase">
+    <div id="profile-overlay" 
+         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="profile-container"></div>
     </div>
 
     <!-- NOTIFICATIONS OVERLAY -->
-    <div id="notifications-overlay" class="hidden overlayBase">
+    <div id="notifications-overlay" 
+         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="notifications-container"></div>
     </div>
 
     <!-- CREATE COMMUNITY OVERLAY -->
-    <div id="create-overlay" class="hidden overlayBase">
+    <div id="create-overlay" 
+         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="create-container"></div>
     </div>
 
-    <!-- STORAGE MUST LOAD FIRST -->
+    <!-- IMPORTANT: LOAD SCRIPTS IN THE CORRECT ORDER -->
     <script src="storage.js"></script>
-
-    <!-- LOGIC (auth, comments, voting, moderation, etc.) -->
     <script src="logic.js"></script>
-
-    <!-- UI SYSTEMS -->
+    <script src="ui.js"></script>
     <script src="message.js"></script>
     <script src="settings.js"></script>
-    <script src="ui.js"></script>
 
 </body>
 </html>
