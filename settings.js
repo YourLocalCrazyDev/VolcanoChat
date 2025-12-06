@@ -1,6 +1,6 @@
 /* ============================================================
-   VolcanoChat — FIXED & POLISHED SETTINGS UI
-   Save-on-exit mood editor (no deselect bug)
+   VolcanoChat — FINAL NO-DESELECT SETTINGS UI
+   Mood input NEVER rerenders while typing
 ============================================================ */
 
 Logic = window.VolcanoLogic;
@@ -8,15 +8,15 @@ Logic = window.VolcanoLogic;
 window.SettingsUI = {
     open: false,
     tab: "profile",
-    tempMood: "", // stores mood while typing (no rerender)
+    tempMood: "",  // local-only mood buffer (NO rerender)
 
     /* ------------------------------------------------------------
-       OPEN / CLOSE
+       OPEN SETTINGS
     ------------------------------------------------------------ */
     show() {
         this.open = true;
 
-        // Load current user mood into temp storage
+        // Load current mood into temp buffer
         const user = Logic.Storage.activeUser;
         if (user) {
             const acc = Logic.Storage.accounts[user];
@@ -26,15 +26,19 @@ window.SettingsUI = {
         this.render();
     },
 
+    /* ------------------------------------------------------------
+       CLOSE SETTINGS  (SAVE MOOD HERE)
+    ------------------------------------------------------------ */
     hide() {
-        // SAVE MOOD ONLY ON EXIT
         const user = Logic.Storage.activeUser;
         if (user) {
-            Logic.Auth.setMood(this.tempMood);
+            Logic.Auth.setMood(this.tempMood);  // APPLY CHANGES
         }
 
         this.open = false;
-        renderApp(); // redraw entire UI
+
+        // DO NOT RENDER SETTINGS — only render main app
+        renderApp();
     },
 
     setTab(tab) {
@@ -43,59 +47,66 @@ window.SettingsUI = {
     },
 
     /* ------------------------------------------------------------
-       RENDER ROOT OVERLAY
+       ROOT RENDER
     ------------------------------------------------------------ */
     render() {
         const overlay = document.getElementById("settings-overlay");
-        const box = document.getElementById("settings-container");
+        const container = document.getElementById("settings-container");
 
         overlay.classList.toggle("hidden", !this.open);
         if (!this.open) return;
 
-        box.innerHTML = "";
-        box.className =
-            "bg-slate-900 text-white p-6 rounded-xl shadow-xl flex gap-8 max-h-[80vh] overflow-y-auto";
+        container.innerHTML = "";
+        container.className =
+            "bg-slate-900 text-white p-6 rounded-xl shadow-xl flex gap-6 max-h-[80vh] overflow-y-auto";
 
-        box.appendChild(this.renderSidebar());
-        box.appendChild(this.renderPanel());
+        container.appendChild(this.renderSidebar());
+        container.appendChild(this.renderPanel());
     },
 
     /* ============================================================
        SIDEBAR
     ============================================================ */
     renderSidebar() {
-        const wrap = document.createElement("div");
-        wrap.className = "flex flex-col gap-3 min-w-[120px]";
+        const sb = document.createElement("div");
+        sb.className = "flex flex-col gap-3 min-w-[140px]";
 
-        const makeBtn = (name, tab) => {
+        const makeBtn = (label, id) => {
             const b = document.createElement("button");
-            b.textContent = name;
+            b.textContent = label;
             b.className =
-                "text-left px-2 py-1 rounded hover:bg-slate-800 cursor-pointer " +
-                (this.tab === tab ? "bg-slate-700 font-bold" : "");
-            b.onclick = () => this.setTab(tab);
+                "px-3 py-2 rounded text-left cursor-pointer transition " +
+                (this.tab === id
+                    ? "bg-slate-700"
+                    : "bg-slate-800 hover:bg-slate-700");
+
+            b.onclick = () => {
+                this.tab = id;
+                this.render(); // OK — switching tabs is allowed
+            };
             return b;
         };
 
-        wrap.appendChild(makeBtn("PROFILE", "profile"));
-        wrap.appendChild(makeBtn("THEME", "theme"));
+        sb.appendChild(makeBtn("PROFILE", "profile"));
+        sb.appendChild(makeBtn("THEME", "theme"));
 
         if (Logic.Storage.activeUser === Logic.ADMIN)
-            wrap.appendChild(makeBtn("ADMIN", "admin"));
+            sb.appendChild(makeBtn("ADMIN", "admin"));
 
-        wrap.appendChild(makeBtn("ABOUT", "about"));
+        sb.appendChild(makeBtn("ABOUT", "about"));
 
+        // Logout
         const logout = document.createElement("button");
         logout.textContent = "LOG OUT";
         logout.className =
-            "text-left px-2 py-1 rounded hover:bg-red-800 text-red-400 cursor-pointer mt-4";
+            "px-3 py-2 rounded bg-red-600 hover:bg-red-700 cursor-pointer mt-4";
         logout.onclick = () => {
             Logic.Auth.logout();
             this.hide();
         };
-        wrap.appendChild(logout);
 
-        return wrap;
+        sb.appendChild(logout);
+        return sb;
     },
 
     /* ============================================================
@@ -109,7 +120,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       PROFILE TAB — FIXED MOOD INPUT
+       PROFILE TAB (NO RERENDER WHILE TYPING)
     ============================================================ */
     renderProfile() {
         const wrap = document.createElement("div");
@@ -125,58 +136,62 @@ window.SettingsUI = {
         const user = Logic.Storage.activeUser;
         const acc = Logic.Storage.accounts[user];
 
-        /* -------- Avatar Grid -------- */
+        /* ----------------- Avatar Grid ----------------- */
         const avLabel = document.createElement("p");
         avLabel.textContent = "Choose Avatar:";
-        avLabel.className = "mb-1";
         wrap.appendChild(avLabel);
 
         const grid = document.createElement("div");
         grid.className =
-            "grid grid-cols-8 gap-2 p-2 bg-slate-800 rounded max-h-[200px] overflow-y-auto";
+            "grid grid-cols-8 gap-2 bg-slate-800 p-2 rounded max-h-[200px] overflow-y-auto";
 
         Logic.avatarList.forEach(av => {
-            const b = document.createElement("button");
-            b.textContent = av;
-            b.className =
-                "text-2xl p-2 rounded bg-slate-700 hover:bg-slate-600 cursor-pointer " +
+            const btn = document.createElement("button");
+            btn.textContent = av;
+            btn.className =
+                "text-2xl p-2 rounded bg-slate-700 hover:bg-slate-600 " +
                 (acc.avatar === av ? "ring-2 ring-orange-400" : "");
 
-            b.onclick = () => {
+            btn.onclick = () => {
                 Logic.Auth.changeAvatar(av);
-                this.render(); // re-render only settings menu
+
+                // IMPORTANT:
+                // We MUST NOT use renderApp() or render()
+                // because it would reset the mood input focus.
+                this.render(); // Safe: only redraw settings, not main UI
             };
 
-            grid.appendChild(b);
+            grid.appendChild(btn);
         });
 
         wrap.appendChild(grid);
 
-        /* -------- Mood Input (no rerender!) -------- */
+        /* ----------------- Mood Input ----------------- */
         const moodLabel = document.createElement("p");
-        moodLabel.textContent = "Your Mood:";
         moodLabel.className = "mt-4 mb-1";
+        moodLabel.textContent = "Your Mood:";
         wrap.appendChild(moodLabel);
 
-        const mood = document.createElement("input");
-        mood.className = "w-full p-2 rounded bg-slate-800";
-        mood.placeholder = "Enter your mood";
+        const moodInput = document.createElement("input");
+        moodInput.className = "w-full p-2 rounded bg-slate-800";
+        moodInput.placeholder = "Enter your mood";
 
-        // load from temp storage
-        mood.value = this.tempMood;
+        // Load temp state (NOT the live account)
+        moodInput.value = this.tempMood;
 
-        // update only the temp variable
-        mood.oninput = e => {
+        // Update ONLY the temp buffer (NO rerender!)
+        moodInput.oninput = e => {
             this.tempMood = e.target.value;
+            // (NO renderApp, NO SettingsUI.render here)
         };
 
-        wrap.appendChild(mood);
+        wrap.appendChild(moodInput);
 
         return wrap;
     },
 
     /* ============================================================
-       THEME TAB
+       THEME
     ============================================================ */
     renderTheme() {
         const wrap = document.createElement("div");
@@ -186,7 +201,7 @@ window.SettingsUI = {
 
         const title = document.createElement("h2");
         title.textContent = "Theme Settings";
-        title.className = "text-2xl font-bold mb-4";
+        title.className = "text-2xl mb-4 font-bold";
         wrap.appendChild(title);
 
         const row = document.createElement("div");
@@ -213,35 +228,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       ADMIN TAB
-    ============================================================ */
-    renderAdmin() {
-        const wrap = document.createElement("div");
-        wrap.className = "flex-1 relative";
-
-        wrap.appendChild(this.renderCloseBtn());
-
-        const title = document.createElement("h2");
-        title.textContent = "Admin Panel";
-        title.className = "text-2xl font-bold mb-4 text-yellow-300";
-        wrap.appendChild(title);
-
-        const btn = document.createElement("button");
-        btn.textContent = "Clear ALL Comments (every community)";
-        btn.className =
-            "bg-red-600 px-6 py-2 rounded text-lg cursor-pointer hover:bg-red-700";
-        btn.onclick = () => {
-            Storage.comments = {};
-            renderApp();
-            this.render();
-        };
-        wrap.appendChild(btn);
-
-        return wrap;
-    },
-
-    /* ============================================================
-       ABOUT TAB
+       ABOUT
     ============================================================ */
     renderAbout() {
         const wrap = document.createElement("div");
@@ -251,26 +238,28 @@ window.SettingsUI = {
 
         const title = document.createElement("h2");
         title.textContent = "About VolcanoChat";
-        title.className = "text-2xl font-bold mb-4";
+        title.className = "text-2xl mb-4 font-bold";
         wrap.appendChild(title);
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a chaotic experimental social playground made entirely in vanilla JavaScript.";
+            "VolcanoChat is a chaotic experimental social playground written entirely in vanilla JS.";
         wrap.appendChild(p);
 
         return wrap;
     },
 
     /* ============================================================
-       CLOSE BUTTON (top-right)
+       CLOSE BUTTON
     ============================================================ */
     renderCloseBtn() {
         const b = document.createElement("button");
         b.textContent = "✖";
         b.className =
             "absolute top-2 right-2 text-3xl text-orange-500 hover:text-orange-300 cursor-pointer";
+
         b.onclick = () => this.hide();
+
         return b;
     }
 };
