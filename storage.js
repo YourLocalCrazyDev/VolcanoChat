@@ -1,17 +1,22 @@
 /* ============================================================
-   VolcanoChat — Temporary Storage (Display Name Version)
-   (RAM-based storage — resets on refresh)
-============================================================ */
+   VolcanoChat — Temporary Storage (No LocalStorage Version)
+   ============================================================ */
+
+/*
+    All data is stored in RAM only.
+    Refreshing the page will wipe everything.
+    Perfect for preventing tampering on GitHub Pages.
+*/
 
 const Storage = {
-    accounts: {},          // { username: { password, avatar, mood, displayName } }
-    activeUser: null,      // currently logged-in username (ID)
+    accounts: {},          // { username: { password, avatar, mood } }
+    activeUser: null,      // currently logged-in username
 
     communities: {},       // { slug: { ...communityData } }
     comments: {},          // { slug: [ commentObjects ] }
 
     votes: {},             // { "username|commentId": 1 or -1 }
-    reports: [],           // moderation reports
+    reports: [],           // all reports
     warnings: {},          // { username: count }
     bans: {},              // { username: { until: timestamp|null } }
 
@@ -32,16 +37,13 @@ const Storage = {
     /* -------------------------
        ACCOUNTS
     ------------------------- */
-    createAccount(username, password, avatar, displayName) {
+    createAccount(username, password, avatar) {
         if (this.accounts[username]) return false;
-
         this.accounts[username] = {
             password,
             avatar,
-            mood: "",
-            displayName: displayName || username   // default displayName is username
+            mood: ""
         };
-
         return true;
     },
 
@@ -59,15 +61,12 @@ const Storage = {
 
     updateAccount(username, data) {
         if (!this.accounts[username]) return;
-
         Object.assign(this.accounts[username], data);
 
-        // update ALL comments made by this user
+        // also update all comments made by the user
         for (const slug in this.comments) {
             this.comments[slug] = this.comments[slug].map(c =>
-                c.user === username
-                    ? { ...c, ...data } // includes displayName, avatar, mood
-                    : c
+                c.user === username ? { ...c, ...data } : c
             );
         }
     },
@@ -109,4 +108,3 @@ const Storage = {
         this.warnings[username] = (this.warnings[username] || 0) + 1;
     }
 };
-
