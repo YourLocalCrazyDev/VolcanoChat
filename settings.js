@@ -1,61 +1,40 @@
 /* ============================================================
-   VolcanoChat — UPGRADED SETTINGS UI (FINAL VERSION)
-   Includes:
-   - Mood autosave
-   - Toast notification
-   - Avatar picker
-   - Theme selector
-   - Admin panel
-   - No reload, no input reset
+   VolcanoChat — FIXED & POLISHED SETTINGS UI
+   Save-on-exit mood editor (no deselect bug)
 ============================================================ */
 
 Logic = window.VolcanoLogic;
 
-/* ============================================================
-   GLOBAL TOAST FUNCTION
-============================================================ */
-window.showToast = (msg) => {
-    let box = document.getElementById("toast-box");
-    if (!box) {
-        box = document.createElement("div");
-        box.id = "toast-box";
-        document.body.appendChild(box);
-    }
-
-    box.textContent = msg;
-    box.style.display = "flex";
-
-    box.className =
-        "fixed bottom-6 left-1/2 -translate-x-1/2 bg-orange-500 text-white " +
-        "px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300 z-[99999]";
-
-    requestAnimationFrame(() => {
-        box.classList.add("opacity-100");
-    });
-
-    setTimeout(() => {
-        box.classList.remove("opacity-100");
-        setTimeout(() => (box.style.display = "none"), 300);
-    }, 1200);
-};
-
-
-/* ============================================================
-   SETTINGS UI MODULE
-============================================================ */
 window.SettingsUI = {
     open: false,
     tab: "profile",
-    _toastShown: false,
+    tempMood: "", // stores mood while typing (no rerender)
 
+    /* ------------------------------------------------------------
+       OPEN / CLOSE
+    ------------------------------------------------------------ */
     show() {
         this.open = true;
+
+        // Load current user mood into temp storage
+        const user = Logic.Storage.activeUser;
+        if (user) {
+            const acc = Logic.Storage.accounts[user];
+            this.tempMood = acc.mood || "";
+        }
+
         this.render();
     },
 
     hide() {
+        // SAVE MOOD ONLY ON EXIT
+        const user = Logic.Storage.activeUser;
+        if (user) {
+            Logic.Auth.setMood(this.tempMood);
+        }
+
         this.open = false;
-        this.render();
+        renderApp(); // redraw entire UI
     },
 
     setTab(tab) {
@@ -63,9 +42,9 @@ window.SettingsUI = {
         this.render();
     },
 
-    /* ============================================================
-       MAIN RENDERER
-    ============================================================ */
+    /* ------------------------------------------------------------
+       RENDER ROOT OVERLAY
+    ------------------------------------------------------------ */
     render() {
         const overlay = document.getElementById("settings-overlay");
         const box = document.getElementById("settings-container");
@@ -88,13 +67,13 @@ window.SettingsUI = {
         const wrap = document.createElement("div");
         wrap.className = "flex flex-col gap-3 min-w-[120px]";
 
-        const makeBtn = (label, id) => {
+        const makeBtn = (name, tab) => {
             const b = document.createElement("button");
-            b.textContent = label;
+            b.textContent = name;
             b.className =
-                "text-left px-3 py-2 rounded hover:bg-slate-800 cursor-pointer transition " +
-                (this.tab === id ? "bg-slate-700 font-bold" : "");
-            b.onclick = () => this.setTab(id);
+                "text-left px-2 py-1 rounded hover:bg-slate-800 cursor-pointer " +
+                (this.tab === tab ? "bg-slate-700 font-bold" : "");
+            b.onclick = () => this.setTab(tab);
             return b;
         };
 
@@ -106,15 +85,13 @@ window.SettingsUI = {
 
         wrap.appendChild(makeBtn("ABOUT", "about"));
 
-        /* LOGOUT BUTTON — FIXED (NO PAGE RELOAD) */
         const logout = document.createElement("button");
         logout.textContent = "LOG OUT";
         logout.className =
-            "text-left px-3 py-2 rounded bg-red-700 hover:bg-red-600 cursor-pointer mt-4";
+            "text-left px-2 py-1 rounded hover:bg-red-800 text-red-400 cursor-pointer mt-4";
         logout.onclick = () => {
             Logic.Auth.logout();
             this.hide();
-            renderApp();
         };
         wrap.appendChild(logout);
 
@@ -122,53 +99,41 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       PANEL SELECTOR
+       PANEL SWITCHER
     ============================================================ */
     renderPanel() {
-        const p = document.createElement("div");
-        p.className = "flex-1 relative";
-
-        p.appendChild(this.renderClose());
-
-        if (this.tab === "profile") p.appendChild(this.renderProfile());
-        if (this.tab === "theme") p.appendChild(this.renderTheme());
-        if (this.tab === "admin") p.appendChild(this.renderAdmin());
-        if (this.tab === "about") p.appendChild(this.renderAbout());
-
-        return p;
+        if (this.tab === "profile") return this.renderProfile();
+        if (this.tab === "theme") return this.renderTheme();
+        if (this.tab === "admin") return this.renderAdmin();
+        return this.renderAbout();
     },
 
     /* ============================================================
-       CLOSE BUTTON
-    ============================================================ */
-    renderClose() {
-        const b = document.createElement("button");
-        b.textContent = "✖";
-        b.className =
-            "absolute right-0 top-0 text-3xl text-orange-500 hover:text-orange-300 cursor-pointer";
-        b.onclick = () => this.hide();
-        return b;
-    },
-
-    /* ============================================================
-       PROFILE TAB
+       PROFILE TAB — FIXED MOOD INPUT
     ============================================================ */
     renderProfile() {
         const wrap = document.createElement("div");
+        wrap.className = "flex-1 relative";
+
+        wrap.appendChild(this.renderCloseBtn());
 
         const title = document.createElement("h2");
         title.textContent = "Profile Settings";
-        title.className = "text-3xl mb-4 font-bold";
+        title.className = "text-2xl mb-4 font-bold";
         wrap.appendChild(title);
 
-        const username = Logic.Storage.activeUser;
-        const acc = Logic.Storage.accounts[username];
+        const user = Logic.Storage.activeUser;
+        const acc = Logic.Storage.accounts[user];
 
-        /* Avatar Picker */
-        wrap.appendChild(document.createTextNode("Choose Avatar:"));
+        /* -------- Avatar Grid -------- */
+        const avLabel = document.createElement("p");
+        avLabel.textContent = "Choose Avatar:";
+        avLabel.className = "mb-1";
+        wrap.appendChild(avLabel);
+
         const grid = document.createElement("div");
         grid.className =
-            "grid grid-cols-8 gap-2 p-2 bg-slate-800 rounded max-h-[200px] overflow-y-auto mb-4";
+            "grid grid-cols-8 gap-2 p-2 bg-slate-800 rounded max-h-[200px] overflow-y-auto";
 
         Logic.avatarList.forEach(av => {
             const b = document.createElement("button");
@@ -179,8 +144,7 @@ window.SettingsUI = {
 
             b.onclick = () => {
                 Logic.Auth.changeAvatar(av);
-                renderApp();
-                this.render();
+                this.render(); // re-render only settings menu
             };
 
             grid.appendChild(b);
@@ -188,29 +152,25 @@ window.SettingsUI = {
 
         wrap.appendChild(grid);
 
-        /* Mood Input (UPGRADED) */
-        const moodLbl = document.createElement("p");
-        moodLbl.textContent = "Your Mood:";
-        moodLbl.className = "mb-1";
-        wrap.appendChild(moodLbl);
+        /* -------- Mood Input (no rerender!) -------- */
+        const moodLabel = document.createElement("p");
+        moodLabel.textContent = "Your Mood:";
+        moodLabel.className = "mt-4 mb-1";
+        wrap.appendChild(moodLabel);
 
-        const input = document.createElement("input");
-        input.placeholder = "Enter your mood";
-        input.value = acc.mood || "";
-        input.className = "w-full p-2 rounded bg-slate-800";
+        const mood = document.createElement("input");
+        mood.className = "w-full p-2 rounded bg-slate-800";
+        mood.placeholder = "Enter your mood";
 
-        input.oninput = e => {
-            Logic.Auth.setMood(e.target.value);
+        // load from temp storage
+        mood.value = this.tempMood;
 
-            // Show toast only once per short period
-            if (!this._toastShown) {
-                this._toastShown = true;
-                showToast("Mood saved!");
-                setTimeout(() => (this._toastShown = false), 1500);
-            }
+        // update only the temp variable
+        mood.oninput = e => {
+            this.tempMood = e.target.value;
         };
 
-        wrap.appendChild(input);
+        wrap.appendChild(mood);
 
         return wrap;
     },
@@ -220,36 +180,33 @@ window.SettingsUI = {
     ============================================================ */
     renderTheme() {
         const wrap = document.createElement("div");
+        wrap.className = "flex-1 relative";
+
+        wrap.appendChild(this.renderCloseBtn());
 
         const title = document.createElement("h2");
         title.textContent = "Theme Settings";
-        title.className = "text-3xl mb-4 font-bold";
+        title.className = "text-2xl font-bold mb-4";
         wrap.appendChild(title);
-
-        const subtitle = document.createElement("p");
-        subtitle.textContent = "Choose your lava style:";
-        subtitle.className = "mb-4";
-        wrap.appendChild(subtitle);
 
         const row = document.createElement("div");
         row.className = "flex gap-3";
 
-        const makeThemeBtn = (label, id) => {
+        const mk = (label, id) => {
             const b = document.createElement("button");
             b.textContent = label;
             b.className =
-                "px-4 py-2 rounded bg-orange-300 hover:bg-orange-400 text-black cursor-pointer";
+                "px-4 py-2 rounded bg-orange-300 text-black hover:bg-orange-400";
             b.onclick = () => {
                 localStorage.setItem("themeMode", id);
-                renderApp();
-                this.render();
+                location.reload();
             };
             return b;
         };
 
-        row.appendChild(makeThemeBtn("Lava Light", "A"));
-        row.appendChild(makeThemeBtn("Molten Dark", "B"));
-        row.appendChild(makeThemeBtn("Eruption Mix", "C"));
+        row.appendChild(mk("Lava Light", "A"));
+        row.appendChild(mk("Molten Dark", "B"));
+        row.appendChild(mk("Eruption Mix", "C"));
 
         wrap.appendChild(row);
         return wrap;
@@ -260,23 +217,26 @@ window.SettingsUI = {
     ============================================================ */
     renderAdmin() {
         const wrap = document.createElement("div");
+        wrap.className = "flex-1 relative";
+
+        wrap.appendChild(this.renderCloseBtn());
 
         const title = document.createElement("h2");
         title.textContent = "Admin Panel";
-        title.className = "text-3xl mb-4 text-yellow-300 font-bold";
+        title.className = "text-2xl font-bold mb-4 text-yellow-300";
         wrap.appendChild(title);
 
         const btn = document.createElement("button");
-        btn.textContent = "Clear All Comments";
+        btn.textContent = "Clear ALL Comments (every community)";
         btn.className =
-            "bg-red-500 px-6 py-2 rounded text-lg cursor-pointer hover:bg-red-600";
+            "bg-red-600 px-6 py-2 rounded text-lg cursor-pointer hover:bg-red-700";
         btn.onclick = () => {
             Storage.comments = {};
             renderApp();
             this.render();
         };
-
         wrap.appendChild(btn);
+
         return wrap;
     },
 
@@ -285,18 +245,32 @@ window.SettingsUI = {
     ============================================================ */
     renderAbout() {
         const wrap = document.createElement("div");
+        wrap.className = "flex-1 relative";
+
+        wrap.appendChild(this.renderCloseBtn());
 
         const title = document.createElement("h2");
         title.textContent = "About VolcanoChat";
-        title.className = "text-3xl mb-4 font-bold";
+        title.className = "text-2xl font-bold mb-4";
         wrap.appendChild(title);
 
         const p = document.createElement("p");
         p.textContent =
             "VolcanoChat is a chaotic experimental social playground made entirely in vanilla JavaScript.";
-        p.className = "opacity-80";
         wrap.appendChild(p);
 
         return wrap;
+    },
+
+    /* ============================================================
+       CLOSE BUTTON (top-right)
+    ============================================================ */
+    renderCloseBtn() {
+        const b = document.createElement("button");
+        b.textContent = "✖";
+        b.className =
+            "absolute top-2 right-2 text-3xl text-orange-500 hover:text-orange-300 cursor-pointer";
+        b.onclick = () => this.hide();
+        return b;
     }
 };
