@@ -1,5 +1,5 @@
 /* ============================================================
-   VolcanoChat — MESSAGE & OVERLAY UI (FINAL FIXED VERSION)
+   VolcanoChat — MESSAGE & OVERLAY UI (Display Name Edition)
    Handles:
    - Notifications overlay
    - Profile overlay
@@ -13,8 +13,7 @@
 ------------------------------------------------------------ */
 Logic = window.VolcanoLogic;
 
-/* Safe helper (UI.js also has this, but we redefine it here to prevent errors
-   if message.js loads first on GitHub Pages) */
+/* Helper */
 function el(tag, cls = "", text = "") {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -23,7 +22,7 @@ function el(tag, cls = "", text = "") {
 }
 
 /* ------------------------------------------------------------
-   PATCH MISSING LOGIC FUNCTIONS (GitHub Pages fixes)
+   PATCH MISSING LOGIC FUNCTIONS (GitHub Pages / fallback fixes)
 ------------------------------------------------------------ */
 if (!Logic.Comments.getRecent) {
     Logic.Comments.getRecent = function (amount = 8) {
@@ -55,32 +54,7 @@ if (!Logic.Mod.clearAllComments) {
     };
 }
 
-if (!Logic.Mod.banUser) {
-    Logic.Mod.banUser = function (report, minutes) {
-        const until = minutes === 0 ? null : Date.now() + minutes * 60000;
-        Logic.Storage.banUser(report.target, until);
-
-        report.resolved = true;
-        report.action = "ban";
-    };
-}
-
-if (!Logic.Mod.warnUser) {
-    Logic.Mod.warnUser = function (report) {
-        Logic.Storage.warnUser(report.target);
-        report.resolved = true;
-        report.action = "warn";
-    };
-}
-
-if (!Logic.Mod.ignoreReport) {
-    Logic.Mod.ignoreReport = function (report) {
-        report.resolved = true;
-        report.action = "ignore";
-    };
-}
-
-/* Safety: logic.js exposes communityIcons, not communityIconList */
+/* Safety */
 if (!Logic.communityIconList) {
     Logic.communityIconList = Logic.communityIcons;
 }
@@ -88,13 +62,14 @@ if (!Logic.communityIconList) {
 /* ------------------------------------------------------------
    MESSAGE UI CORE
 ------------------------------------------------------------ */
+
 window.MessageUI = {
     showNotif: false,
     showProfUser: null,
     showCreate: false,
     toastTimer: null,
 
-    /* ====== PUBLIC OVERLAY OPENERS ====== */
+    /* ====== PUBLIC OPENERS ====== */
     showNotifications() {
         this.showNotif = true;
         this.render();
@@ -163,42 +138,45 @@ window.MessageUI = {
         }
 
         c.innerHTML = "";
-        c.className = "bg-black bg-opacity-70 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto relative text-white";
+        c.className =
+            "bg-black bg-opacity-70 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto relative text-white";
 
-        const close = document.createElement("button");
-        close.textContent = "❌";
-        close.className = "absolute top-2 right-3 text-3xl";
+        // close button
+        const close = el("button", "absolute top-2 right-3 text-3xl", "❌");
         close.onclick = () => {
             this.showNotif = false;
             this.render();
         };
         c.appendChild(close);
 
-        /* Header */
-        const h = el("h2", "text-2xl mb-3", "Notifications");
-        c.appendChild(h);
+        // heading
+        c.appendChild(el("h2", "text-2xl mb-3", "Notifications"));
 
-        /* Latest comments */
+        /* ---- Latest Comments ---- */
         c.appendChild(el("h3", "text-xl mb-2", "Latest Comments"));
 
-        Logic.Comments.getRecent(8).forEach(cmt => {
-            const banned = Logic.isBanned(cmt.user);
-            const p = el("p", "mb-1 text-sm");
+        Logic.Comments.getRecent(8).forEach(cm => {
+            const banned = Logic.isBanned(cm.user);
+            const account = Logic.Storage.accounts[cm.user];
+
+            const p = el("p", "mb-2 text-sm");
+
             p.innerHTML = `
-                <span class="${banned ? "text-red-400" : ""}">
-                    ${cmt.avatar} <b>${cmt.user}</b>
-                </span>: ${cmt.text}
+                ${cm.avatar} <b>${account.displayName}</b>
+                <span class="opacity-70">@${cm.user}</span>:
+                ${cm.text}
                 <span class="text-xs text-gray-400">
-                    [${Logic.Storage.communities[cmt.community]?.name}]
+                    [${Logic.Storage.communities[cm.community]?.name}]
                 </span>
             `;
+
+            if (banned) p.classList.add("text-red-400");
             c.appendChild(p);
         });
 
-        /* Admin reports */
+        /* ---- Admin Reports ---- */
         if (Logic.Storage.activeUser === Logic.ADMIN) {
-            const title = el("h3", "text-xl mt-4 mb-2", "Reports");
-            c.appendChild(title);
+            c.appendChild(el("h3", "text-xl mt-4 mb-2", "Reports"));
 
             const unresolved = Logic.Storage.reports.filter(r => !r.resolved);
 
@@ -208,15 +186,16 @@ window.MessageUI = {
             }
 
             unresolved.forEach(r => {
-                const box = el("div", "border border-gray-500 rounded p-2 mb-2 text-sm");
+                const acc = Logic.Storage.accounts[r.target];
 
+                const box = el("div", "border border-gray-500 rounded p-2 mb-2 text-sm");
                 box.innerHTML = `
-                    <p><b>Target:</b> 
-                        <span class="${Logic.isBanned(r.target) ? "text-red-400" : ""}">
-                            ${r.target}
-                        </span>
+                    <p><b>Target:</b> ${acc.displayName} 
+                        <span class="opacity-70">@${r.target}</span>
                     </p>
-                    <p><b>Reporter:</b> ${r.reporter}</p>
+                    <p><b>Reporter:</b> ${Logic.Storage.accounts[r.reporter]?.displayName}
+                        <span class="opacity-70">@${r.reporter}</span>
+                    </p>
                     <p><b>Reason:</b> ${r.reason}</p>
                     <p class="text-xs">${new Date(r.time).toLocaleString()}</p>
                 `;
@@ -226,7 +205,7 @@ window.MessageUI = {
                 /* Ban */
                 const ban = el("button", "bg-red-500 px-2 py-1 rounded text-xs", "Ban");
                 ban.onclick = () => {
-                    const mins = prompt("Ban duration in minutes (0 = permanent):", "60");
+                    const mins = prompt("Ban minutes (0 = permanent):", "60");
                     if (mins === null) return;
                     const dur = parseInt(mins);
                     if (isNaN(dur) || dur < 0) return alert("Invalid.");
@@ -274,13 +253,14 @@ window.MessageUI = {
             return;
         }
 
-        const user = this.showProfUser;
-        const acc = Logic.Storage.accounts[user];
+        const uname = this.showProfUser;
+        const acc = Logic.Storage.accounts[uname];
 
         c.innerHTML = "";
         c.className =
             "bg-black bg-opacity-40 p-6 rounded-xl w-96 text-center max-h-[80vh] overflow-y-auto text-white relative";
 
+        // close button
         const close = el("button", "absolute top-4 right-4 text-4xl", "❌");
         close.onclick = () => {
             this.showProfUser = null;
@@ -288,39 +268,52 @@ window.MessageUI = {
         };
         c.appendChild(close);
 
+        // avatar
         c.appendChild(el("div", "text-6xl mb-3", acc.avatar));
 
-        const h = el("h2", "text-3xl font-bold mb-2", user);
-        if (Logic.isBanned(user)) h.classList.add("text-red-400");
-        if (user === Logic.ADMIN)
-            h.appendChild(el("span", "text-yellow-300 ml-2 text-xl", "[ADMIN]"));
-        c.appendChild(h);
+        // display name
+        const dn = el("h2", "text-3xl font-bold", acc.displayName);
+        if (Logic.isBanned(uname)) dn.classList.add("text-red-400");
+        c.appendChild(dn);
 
-        c.appendChild(el("p", "mt-1 mb-3 text-sm",
-            `Warnings: ${Logic.Storage.warnings[user] || 0}`
-        ));
-        c.appendChild(el("p", "mb-4", `Mood: ${acc.mood || "None"}`));
+        // @username
+        c.appendChild(el("p", "opacity-70 -mt-1 mb-3", `@${uname}`));
 
-        if (Logic.Storage.activeUser && Logic.Storage.activeUser !== user) {
+        // mood
+        c.appendChild(
+            el("p", "mb-4 text-sm", `Mood: ${acc.mood || "None"}`)
+        );
+
+        // warnings
+        c.appendChild(
+            el("p", "mb-4 text-sm",
+                `Warnings: ${Logic.Storage.warnings[uname] || 0}`)
+        );
+
+        // report button
+        if (Logic.Storage.activeUser && Logic.Storage.activeUser !== uname) {
             const btn = el("button", "bg-red-500 px-4 py-2 rounded mb-4", "Report User");
             btn.onclick = () => {
-                Logic.Mod.submitReport(user);
+                Logic.Mod.submitReport(uname);
                 this.toast("Report submitted.");
             };
             c.appendChild(btn);
         }
 
-        c.appendChild(el("h3", "text-xl mb-2", "Comments:"));
+        // comments header
+        c.appendChild(el("h3", "text-xl mb-2", "Comments"));
 
         const list = el(
             "div",
             "bg-black bg-opacity-30 rounded p-3 max-h-64 overflow-y-auto text-left text-sm"
         );
 
-        Logic.Comments.getAllByUser(user).forEach(cm => {
+        Logic.Comments.getAllByUser(uname).forEach(cm => {
             const p = el("p", "mb-2");
             p.innerHTML = `
-                ${cm.avatar} <b>${cm.user}</b>: ${cm.text}
+                ${cm.avatar} <b>${acc.displayName}</b>
+                <span class="opacity-70">@${uname}</span>:
+                ${cm.text}
                 <span class="text-blue-300">(${Logic.Storage.communities[cm.community]?.name})</span>
             `;
             list.appendChild(p);
@@ -330,7 +323,7 @@ window.MessageUI = {
     },
 
     /* ============================================================
-       CREATE COMMUNITY
+       CREATE COMMUNITY OVERLAY
     ============================================================= */
     renderCreate() {
         const o = document.getElementById("create-overlay");
@@ -344,7 +337,7 @@ window.MessageUI = {
 
         c.innerHTML = "";
         c.className =
-            "bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto relative text-white";
+            "bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto text-white relative";
 
         const close = el("button", "absolute top-2 right-3 text-3xl", "❌");
         close.onclick = () => {
@@ -355,14 +348,14 @@ window.MessageUI = {
 
         c.appendChild(el("h2", "text-2xl mb-3", "Create a Volcano"));
 
-        // name
+        // Name
         c.appendChild(el("label", "text-sm", "Community name"));
         const name = el("input", "w-full border rounded px-3 py-2 mb-3 text-black");
         name.placeholder = "John's Jamboree";
         name.oninput = e => (this.newCommName = e.target.value);
         c.appendChild(name);
 
-        // desc
+        // Desc
         c.appendChild(el("label", "text-sm", "Description"));
         const desc = document.createElement("textarea");
         desc.className = "w-full border rounded px-3 py-2 mb-3 text-black";
@@ -371,7 +364,7 @@ window.MessageUI = {
         desc.oninput = e => (this.newCommDesc = e.target.value);
         c.appendChild(desc);
 
-        // icon picker
+        // Icon picker
         c.appendChild(el("label", "text-sm block mb-1", "Choose icon"));
 
         const iconBox = el(
@@ -395,7 +388,7 @@ window.MessageUI = {
         });
         c.appendChild(iconBox);
 
-        // create button
+        // Create button
         const createBtn = el(
             "button",
             "bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded w-full",
@@ -407,7 +400,8 @@ window.MessageUI = {
 
             const slug = Logic.slugify(name);
             if (!slug) return alert("Invalid name.");
-            if (Logic.Storage.communities[slug]) return alert("Already exists.");
+            if (Logic.Storage.communities[slug])
+                return alert("Already exists.");
 
             Logic.Community.create(
                 name,
