@@ -1,5 +1,5 @@
 /* ============================================================
-   VolcanoChat — SETTINGS UI (Stable, Avatar + Mood Working)
+   VolcanoChat — SETTINGS UI (Stable, Mood + Avatar Fully Working)
 ============================================================ */
 
 Logic = window.VolcanoLogic;
@@ -8,7 +8,7 @@ window.SettingsUI = {
     open: false,
     tab: "profile",
 
-    // local buffer for mood so we don't rerender on every keystroke
+    // Local buffer for mood so typing doesn't lose focus
     tempMood: "",
 
     /* ------------------------------------------------------------
@@ -29,17 +29,16 @@ window.SettingsUI = {
     },
 
     /* ------------------------------------------------------------
-       CLOSE SETTINGS (SAVE MOOD WHEN CLOSING)
+       CLOSE SETTINGS (SAVE MOOD)
     ------------------------------------------------------------ */
     hide() {
         const user = Logic.Storage.activeUser;
         if (user) {
-            // apply whatever is in tempMood to the account
             Logic.Auth.setMood(this.tempMood);
         }
 
         this.open = false;
-        renderApp(); // refresh main UI; SettingsUI.render() will hide overlay
+        renderApp();
     },
 
     /* ------------------------------------------------------------
@@ -72,11 +71,12 @@ window.SettingsUI = {
     },
 
     /* ------------------------------------------------------------
-       PANEL-ONLY RERENDER (used after avatar change)
+       PANEL-ONLY RERENDER (avatar selection needs this)
     ------------------------------------------------------------ */
     rerenderPanel() {
         const container = document.getElementById("settings-container");
-        // children[0] = sidebar, children[1] = panel
+
+        // Sidebar = children[0], Panel = children[1]
         if (container.children.length > 1) {
             container.removeChild(container.children[1]);
         }
@@ -135,9 +135,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       PROFILE TAB
-       - Avatar click: updates account + UI
-       - Mood: uses temp buffer, no rerender, saved on close
+       PROFILE TAB — Avatar + Mood Input
     ============================================================ */
     renderProfile() {
         const wrap = document.createElement("div");
@@ -153,7 +151,7 @@ window.SettingsUI = {
         const user = Logic.Storage.activeUser;
         const acc = Logic.Storage.accounts[user];
 
-        /* ---- Avatar Grid ---- */
+        /* ---------------- Avatar Grid ---------------- */
         const avLabel = document.createElement("p");
         avLabel.textContent = "Choose Avatar:";
         avLabel.className = "mb-1";
@@ -171,13 +169,13 @@ window.SettingsUI = {
                 (acc.avatar === av ? "ring-2 ring-orange-400" : "");
 
             btn.onclick = () => {
-                // update account avatar
-                Logic.Auth.changeAvatar(av);
+                // UPDATE AVATAR — FIXED FUNCTION
+                Logic.Auth.setAvatar(av);
 
-                // update main UI avatar (greeting, comments, etc.)
+                // Update UI everywhere
                 renderApp();
 
-                // redraw only the right panel so ring highlight updates
+                // Redraw only the panel (keeps focus)
                 this.rerenderPanel();
             };
 
@@ -186,7 +184,7 @@ window.SettingsUI = {
 
         wrap.appendChild(grid);
 
-        /* ---- Mood Input ---- */
+        /* ---------------- Mood Input ---------------- */
         const moodLabel = document.createElement("p");
         moodLabel.textContent = "Your Mood:";
         moodLabel.className = "mt-4 mb-1";
@@ -196,10 +194,10 @@ window.SettingsUI = {
         mood.className = "w-full p-2 rounded bg-slate-800";
         mood.placeholder = "Enter your mood";
 
-        // use local buffer (no DOM rebuild)
         mood.value = this.tempMood;
+
         mood.oninput = e => {
-            this.tempMood = e.target.value; // just update buffer
+            this.tempMood = e.target.value;
         };
 
         wrap.appendChild(mood);
@@ -269,6 +267,7 @@ window.SettingsUI = {
             "bg-red-600 hover:bg-red-700 px-6 py-2 rounded text-lg cursor-pointer";
         btn.onclick = () => {
             Storage.comments = {};
+            Storage.save();
             renderApp();
             this.rerenderPanel();
         };
@@ -293,14 +292,14 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a tiny chaotic lava pit social experiment built entirely in vanilla JS.";
+            "VolcanoChat is a chaotic experimental social playground built entirely in vanilla JS.";
         wrap.appendChild(p);
 
         return wrap;
     },
 
     /* ============================================================
-       CLOSE BUTTON (top-right)
+       CLOSE BUTTON
     ============================================================ */
     renderCloseBtn() {
         const b = document.createElement("button");
