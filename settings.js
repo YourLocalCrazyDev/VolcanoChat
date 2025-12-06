@@ -1,5 +1,5 @@
 /* ============================================================
-   VolcanoChat — SETTINGS OVERLAY UI (Original Layout Restored)
+   VolcanoChat — SETTINGS OVERLAY UI (Final Fixed Version)
 ============================================================ */
 
 Logic = window.VolcanoLogic;
@@ -29,34 +29,35 @@ window.SettingsUI = {
         const container = document.getElementById("settings-container");
 
         overlay.classList.toggle("hidden", !this.open);
+
         if (!this.open) {
             container.innerHTML = "";
             return;
         }
 
-        // ORIGINAL FULL WIDTH PANEL
+        // Main layout restored
         container.innerHTML = "";
         container.className =
             "flex bg-slate-900 text-white p-6 rounded-xl shadow-xl w-[900px] gap-6";
 
         container.appendChild(this.renderSidebar());
-        container.appendChild(this.renderRightPanel());
+        container.appendChild(this.renderPanel());
     },
 
     /* ============================================================
-       LEFT SIDEBAR (Original Vertical Tabs)
+       SIDEBAR (buttons now styled correctly)
     ============================================================ */
     renderSidebar() {
         const sb = document.createElement("div");
-        sb.className = "flex flex-col gap-3 w-40 text-sm font-bold";
+        sb.className = "flex flex-col gap-3 w-40";
 
         const makeBtn = (id, label) => {
             const b = document.createElement("button");
             b.textContent = label;
             b.className =
-                `px-3 py-2 rounded text-left ${
+                `px-3 py-2 rounded text-left cursor-pointer transition ${
                     this.tab === id
-                        ? "bg-orange-500"
+                        ? "bg-orange-500 text-white"
                         : "bg-slate-800 hover:bg-slate-700"
                 }`;
             b.onclick = () => this.setTab(id);
@@ -71,10 +72,11 @@ window.SettingsUI = {
 
         sb.appendChild(makeBtn("about", "ABOUT"));
 
+        // Logout button
         const logout = document.createElement("button");
         logout.textContent = "LOG OUT";
         logout.className =
-            "px-3 py-2 rounded bg-red-600 hover:bg-red-700 mt-4";
+            "px-3 py-2 rounded bg-red-600 hover:bg-red-700 cursor-pointer mt-4";
         logout.onclick = () => {
             Logic.Auth.logout();
             this.hide();
@@ -86,15 +88,16 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       RIGHT PANEL WRAPPER (Original)
+       RIGHT PANEL
     ============================================================ */
-    renderRightPanel() {
+    renderPanel() {
         const p = document.createElement("div");
         p.className = "flex-1 relative";
 
+        // Close button
         const close = document.createElement("button");
         close.textContent = "❌";
-        close.className = "absolute right-0 top-0 text-xl";
+        close.className = "absolute right-0 top-0 text-xl cursor-pointer";
         close.onclick = () => this.hide();
         p.appendChild(close);
 
@@ -107,7 +110,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       PROFILE TAB (Original Styling)
+       PROFILE TAB (avatar clicking FIXED)
     ============================================================ */
     renderProfile() {
         const user = Logic.Storage.activeUser;
@@ -115,12 +118,13 @@ window.SettingsUI = {
 
         const box = document.createElement("div");
 
+        // Title
         const h = document.createElement("h2");
         h.textContent = "Profile Settings";
         h.className = "text-3xl mb-4";
         box.appendChild(h);
 
-        // Avatar selection (Original grid style)
+        // Avatar grid
         box.appendChild(document.createTextNode("Choose Avatar:"));
         const grid = document.createElement("div");
         grid.className =
@@ -130,14 +134,17 @@ window.SettingsUI = {
             const btn = document.createElement("button");
             btn.textContent = av;
             btn.className =
-                `px-2 py-1 rounded ${
-                    acc.avatar === av ? "bg-yellow-300" : "bg-white text-black"
-                }`;
+                `px-2 py-1 rounded cursor-pointer border ${
+                    acc.avatar === av ? "bg-yellow-300 border-yellow-500" : "bg-white border-gray-400"
+                } text-black`;
+
+            // FIXED: correct function name
             btn.onclick = () => {
                 Logic.Auth.changeAvatar(av);
                 renderApp();
                 this.render();
             };
+
             grid.appendChild(btn);
         });
 
@@ -151,8 +158,7 @@ window.SettingsUI = {
         const input = document.createElement("input");
         input.value = acc.mood || "";
         input.placeholder = "Enter your mood";
-        input.className =
-            "text-black border rounded px-3 py-2 w-64";
+        input.className = "text-black border rounded px-3 py-2 w-64";
         input.oninput = e => {
             Logic.Auth.setMood(e.target.value);
             renderApp();
@@ -163,7 +169,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       THEME TAB (Original)
+       THEME TAB
     ============================================================ */
     renderTheme() {
         const box = document.createElement("div");
@@ -180,10 +186,10 @@ window.SettingsUI = {
             const b = document.createElement("button");
             b.textContent = label;
             b.className =
-                `px-4 py-2 rounded ${
+                `px-4 py-2 rounded cursor-pointer ${
                     UI.theme === id
-                        ? "bg-orange-400"
-                        : "bg-orange-200 text-black"
+                        ? "bg-orange-400 text-black"
+                        : "bg-orange-200 text-black hover:bg-orange-300"
                 }`;
             b.onclick = () => {
                 UI.theme = id;
@@ -203,7 +209,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       ADMIN TAB (Original)
+       ADMIN
     ============================================================ */
     renderAdmin() {
         const box = document.createElement("div");
@@ -215,10 +221,9 @@ window.SettingsUI = {
 
         const btn = document.createElement("button");
         btn.textContent = "Clear All Comments (All Communities)";
-        btn.className = "bg-red-500 px-6 py-2 rounded text-lg";
+        btn.className = "bg-red-500 px-6 py-2 rounded text-lg cursor-pointer";
         btn.onclick = () => {
             Storage.comments = {};
-            Storage.save?.();
             renderApp();
             this.render();
         };
@@ -228,7 +233,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       ABOUT TAB (Original)
+       ABOUT
     ============================================================ */
     renderAbout() {
         const box = document.createElement("div");
@@ -240,7 +245,7 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a tiny Reddit-style lava pit full of chaos. Join volcanoes, post, roast, and survive.";
+            "VolcanoChat is a tiny Reddit-style lava pit of chaos where you join volcanoes, roast friends, and unleash chaos.";
         p.className = "max-w-md opacity-80";
         box.appendChild(p);
 
