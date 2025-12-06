@@ -1,10 +1,9 @@
 /* ============================================================
-   VolcanoChat — MAIN SCREEN UI (Non-React, FINAL FIXED VERSION)
+   VolcanoChat — MAIN SCREEN UI (FINAL FIXED VERSION)
    ============================================================ */
 
 /* ------------------------------------------------------------
-   GLOBAL IMPORTS
-   (Do NOT use const/let — these must attach to the global scope)
+   GLOBAL IMPORTS (MUST NOT use const/let)
 ------------------------------------------------------------ */
 Logic = window.VolcanoLogic;
 MsgUI = window.MessageUI;
@@ -18,7 +17,7 @@ const UI = {
     theme: localStorage.getItem("themeMode") || "A",
     sort: "hot",
 
-    // login + signup
+    // login + signup fields
     loginUser: "",
     loginPass: "",
     signupUser: "",
@@ -39,6 +38,9 @@ const UI = {
 
 const appRoot = document.getElementById("app-root");
 
+/* ------------------------------------------------------------
+   DOM HELPERS
+------------------------------------------------------------ */
 function el(tag, cls = "", text = "") {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -51,7 +53,7 @@ function clear(node) {
 }
 
 /* ------------------------------------------------------------
-   THEME HANDLING
+   THEMING
 ------------------------------------------------------------ */
 function applyTheme() {
     const b = document.body;
@@ -73,7 +75,7 @@ function applyTheme() {
 }
 
 /* ------------------------------------------------------------
-   SAFE RENDER ENTRY POINT
+   MAIN RENDER FUNCTION
 ------------------------------------------------------------ */
 function renderApp() {
     applyTheme();
@@ -91,9 +93,10 @@ function renderApp() {
 }
 
 /* ------------------------------------------------------------
-   SAFE INITIALIZATION (FIXED)
+   INITIALIZATION — FIXED GREETING RESTORE
 ------------------------------------------------------------ */
 window.addEventListener("DOMContentLoaded", () => {
+
     // Initialize default community if none exist
     if (!Logic.Storage.communities ||
         Object.keys(Logic.Storage.communities).length === 0) {
@@ -107,6 +110,12 @@ window.addEventListener("DOMContentLoaded", () => {
         UI.currentCommunity = "volcanochat";
     } else {
         UI.currentCommunity = Object.keys(Logic.Storage.communities)[0];
+    }
+
+    // 🔥 FIX: restore greeting if logged in
+    if (Logic.Storage.activeUser) {
+        const u = Logic.Storage.activeUser;
+        UI.greetingText = `${Logic.randomGreeting()}, ${u}!`;
     }
 
     renderApp();
@@ -132,10 +141,11 @@ function renderSidebar() {
         if (!Logic.Storage.activeUser) return alert("Log in first");
         MsgUI.showCreateCommunity();
     };
+
     top.appendChild(add);
     box.appendChild(top);
 
-    // search
+    // search bar
     const search = el("input", "border rounded px-2 py-1 w-full mb-2");
     search.placeholder = "Search...";
     search.value = UI.communitySearch;
@@ -306,6 +316,7 @@ function renderSignup() {
     const btn = el("button", "bg-blue-300 px-4 py-2 w-full mb-2 rounded", "Sign Up");
     btn.onclick = () => {
         const res = Logic.Auth.signup(UI.signupUser, UI.signupPass, UI.selectedAvatar);
+
         if (res === "INVALID") return alert("Invalid input.");
         if (res === "EXISTS") return alert("Account exists.");
 
@@ -332,8 +343,7 @@ function renderGreeting() {
     const user = Logic.Storage.activeUser;
     const acc = Logic.Storage.accounts[user];
 
-    // ★★★★★ IMPORTANT FIX: add "relative"
-    const wrap = el("div", "relative p-3 mb-4 rounded shadow bg-[rgba(255,250,240,0.95)]");
+    const wrap = el("div", "p-3 mb-4 rounded shadow bg-[rgba(255,250,240,0.95)] relative");
 
     const row = el("div", "flex items-center gap-3");
     row.appendChild(el("span", "text-4xl", acc.avatar));
@@ -344,13 +354,13 @@ function renderGreeting() {
     textWrap.appendChild(g);
 
     if (user === Logic.ADMIN)
-        textWrap.appendChild(el("span", "text-yellow-500 text-sm font-bold", "[ADMIN]"));
+        textWrap.appendChild(el("span", "text-yellow-500 text-sm font-bold ml-2", "[ADMIN]"));
 
     row.appendChild(textWrap);
     wrap.appendChild(row);
 
-    // top-right icons
-    const icons = el("div", "absolute right-3 top-3 flex flex-col gap-2");
+    // buttons (notifications + settings)
+    const icons = el("div", "absolute right-3 top-3 flex gap-3");
 
     const bell = el("button", "text-3xl", "🔔");
     bell.onclick = () => MsgUI.showNotifications();
@@ -360,6 +370,7 @@ function renderGreeting() {
 
     icons.appendChild(bell);
     icons.appendChild(gear);
+
     wrap.appendChild(icons);
 
     return wrap;
@@ -412,10 +423,11 @@ function renderCommunityHeader() {
     wrap.appendChild(title);
     wrap.appendChild(el("p", "text-sm text-gray-600", comm.description));
 
+    // join/leave
     if (Logic.Storage.activeUser) {
         const user = Logic.Storage.activeUser;
-
         const box = el("div", "mt-2");
+
         const joined = comm.members.includes(user);
 
         const btn = el(
@@ -432,6 +444,7 @@ function renderCommunityHeader() {
 
         box.appendChild(btn);
 
+        // verify (admin only)
         if (user === Logic.ADMIN) {
             const v = el(
                 "button",
@@ -448,10 +461,14 @@ function renderCommunityHeader() {
         wrap.appendChild(box);
     }
 
+    // stats
     wrap.appendChild(
-        el("p", "text-xs mt-2", `Members: ${comm.members.length} | Posts: ${comments.length}`)
+        el("p", "text-xs mt-2",
+            `Members: ${comm.members.length} | Posts: ${comments.length}`
+        )
     );
 
+    // sorting
     const s = el("div", "text-xs mt-1");
     s.appendChild(el("span", "", "Sort: "));
 
@@ -471,8 +488,8 @@ function renderCommunityHeader() {
 
     s.appendChild(hot);
     s.appendChild(newest);
-
     wrap.appendChild(s);
+
     return wrap;
 }
 
@@ -482,6 +499,7 @@ function renderCommunityHeader() {
 function renderCommentsSection() {
     const slug = UI.currentCommunity;
     const list = Logic.Storage.comments[slug] || [];
+
     const wrap = el("div", "p-4 rounded shadow bg-white text-black mb-4");
 
     wrap.appendChild(el("h2", "text-xl mb-2 text-orange-800", "Comments"));
