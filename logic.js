@@ -45,22 +45,22 @@ const greetings = [
 ];
 
 const roasts = [
-    (n) => `${n}, your brain runs at potato-powered WiFi levels.`,
-    (n) => `${n}, even NPCs would refuse your side quests.`,
-    (n) => `${n}, your chaos energy could fuel a final boss.`,
-    (n) => `${n}, you generate plot twists by accident.`,
-    (n) => `${n}, your decision-making lags in real life.`,
+    n => `${n}, your brain runs at potato-powered WiFi levels.`,
+    n => `${n}, even NPCs would refuse your side quests.`,
+    n => `${n}, your chaos energy could fuel a final boss.`,
+    n => `${n}, you generate plot twists by accident.`,
+    n => `${n}, your decision-making lags in real life.`,
 ];
 
 const volcanicRoasts = [
-    (n) => `${n}, your presence alone causes reality to stutter.`,
-    (n) => `${n}, fate patched you out but you keep respawning.`,
-    (n) => `${n}, the universe needs therapy after watching you.`,
-    (n) => `${n}, you are the lore reason the timeline fractured.`,
+    n => `${n}, your presence alone causes reality to stutter.`,
+    n => `${n}, fate patched you out but you keep respawning.`,
+    n => `${n}, the universe needs therapy after watching you.`,
+    n => `${n}, you are the lore reason the timeline fractured.`,
 ];
 
 /* ------------------------------------------------------------
-   UTILITY FUNCTIONS
+   UTILITIES
 ------------------------------------------------------------ */
 
 function randomGreeting() {
@@ -68,16 +68,12 @@ function randomGreeting() {
 }
 
 function slugify(name) {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, "_")
-        .replace(/[^a-z0-9_]/g, "");
+    return name.toLowerCase().trim().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
 }
 
 function generateAccentClass(icon) {
-    if (!icon) return "border-accent-0";
-    const code = icon.codePointAt(0) || 0;
+    if (!icon) return "";
+    const code = icon.codePointAt(0);
     return `border-accent-${code % 5}`;
 }
 
@@ -89,7 +85,7 @@ function isBanned(username) {
 }
 
 /* ------------------------------------------------------------
-   AUTH LOGIC
+   AUTH
 ------------------------------------------------------------ */
 
 const Auth = {
@@ -102,9 +98,7 @@ const Auth = {
 
     login(username, password) {
         if (isBanned(username)) return "BANNED";
-
-        const res = Storage.login(username, password);
-        return res;
+        return Storage.login(username, password);
     },
 
     logout() {
@@ -116,9 +110,9 @@ const Auth = {
         Storage.updateAccount(Storage.activeUser, { mood });
     },
 
-    changeAvatar(newAvatar) {
+    setAvatar(avatar) {
         if (!Storage.activeUser) return;
-        Storage.updateAccount(Storage.activeUser, { avatar: newAvatar });
+        Storage.updateAccount(Storage.activeUser, { avatar });
     }
 };
 
@@ -130,20 +124,18 @@ const Roast = {
     normal() {
         const u = Storage.activeUser;
         if (!u) return "";
-        const fn = roasts[Math.floor(Math.random() * roasts.length)];
-        return fn(u);
+        return roasts[Math.floor(Math.random() * roasts.length)](u);
     },
 
     volcanic() {
         const u = Storage.activeUser;
         if (!u) return "";
-        const fn = volcanicRoasts[Math.floor(Math.random() * volcanicRoasts.length)];
-        return fn(u);
+        return volcanicRoasts[Math.floor(Math.random() * volcanicRoasts.length)](u);
     }
 };
 
 /* ------------------------------------------------------------
-   COMMUNITY LOGIC
+   COMMUNITIES
 ------------------------------------------------------------ */
 
 const Community = {
@@ -168,19 +160,20 @@ const Community = {
     },
 
     join(slug) {
-        const com = Storage.communities[slug];
-        if (!com) return;
         const user = Storage.activeUser;
         if (!user) return;
+        const com = Storage.communities[slug];
+        if (!com) return;
 
-        if (!com.members.includes(user)) com.members.push(user);
+        if (!com.members.includes(user))
+            com.members.push(user);
     },
 
     leave(slug) {
-        const com = Storage.communities[slug];
-        if (!com) return;
         const user = Storage.activeUser;
         if (!user) return;
+        const com = Storage.communities[slug];
+        if (!com) return;
 
         com.members = com.members.filter(m => m !== user);
     },
@@ -199,23 +192,21 @@ const Community = {
 
 const Comments = {
     post(slug, text) {
-        const user = Storage.activeUser;
-        if (!user || !text.trim()) return;
+        const u = Storage.activeUser;
+        if (!u || !text.trim()) return;
 
-        const acc = Storage.accounts[user];
+        const acc = Storage.accounts[u];
 
-        const obj = {
+        Storage.addComment(slug, {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-            user,
+            user: u,
             avatar: acc.avatar,
             mood: acc.mood,
             text,
             time: Date.now(),
             score: 0,
             community: slug
-        };
-
-        Storage.addComment(slug, obj);
+        });
     },
 
     vote(comment, direction) {
@@ -228,43 +219,53 @@ const Comments = {
 
         if (prev === direction) newVote = 0;
 
+        Storage.setVote(key, newVote);
         const delta = newVote - prev;
 
-        Storage.votes[key] = newVote;
-
-        // Update score
         const arr = Storage.comments[comment.community];
-        const idx = arr.findIndex(c => c.id === comment.id);
-        if (idx !== -1) arr[idx].score += delta;
+        const i = arr.findIndex(c => c.id === comment.id);
+        if (i !== -1) arr[i].score += delta;
     },
 
     sort(comments, mode) {
         const arr = [...comments];
-        if (mode === "new") {
-            return arr.sort((a, b) => b.time - a.time);
+        if (mode === "new") return arr.sort((a, b) => b.time - a.time);
+        return arr.sort((a, b) =>
+            (b.score - a.score) || (b.time - a.time)
+        );
+    },
+
+    getRecent(limit = 10) {
+        let all = [];
+        for (const slug in Storage.comments) {
+            all = all.concat(Storage.comments[slug]);
         }
-        return arr.sort((a, b) => {
-            const s = (b.score || 0) - (a.score || 0);
-            if (s !== 0) return s;
-            return b.time - a.time;
-        });
+        return all.sort((a, b) => b.time - a.time).slice(0, limit);
+    },
+
+    getAllByUser(user) {
+        let out = [];
+        for (const slug in Storage.comments) {
+            out = out.concat(Storage.comments[slug].filter(c => c.user === user));
+        }
+        return out.sort((a, b) => b.time - a.time);
     }
 };
 
 /* ------------------------------------------------------------
-   REPORTS + BANS + WARNINGS
+   MODERATION SYSTEM (FIXED)
 ------------------------------------------------------------ */
 
 const Mod = {
-    submitReport(target, reason) {
+    submitReport(target, reason = "No reason provided") {
         const reporter = Storage.activeUser;
         if (!reporter || reporter === target) return;
 
         Storage.addReport({
-            id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+            id: Date.now().toString(36),
             target,
             reporter,
-            reason: reason || "No reason provided",
+            reason,
             resolved: false,
             action: null,
             time: Date.now()
@@ -295,10 +296,11 @@ const Mod = {
 };
 
 /* ------------------------------------------------------------
-   EXPORT TO UI
+   EXPORT LOGIC TO GLOBAL
 ------------------------------------------------------------ */
 
 window.VolcanoLogic = {
+    ADMIN,
     avatarList,
     communityIcons,
     Auth,
@@ -308,6 +310,7 @@ window.VolcanoLogic = {
     Mod,
     Storage,
     randomGreeting,
+    slugify,
     generateAccentClass,
     isBanned
 };
