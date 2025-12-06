@@ -9,9 +9,8 @@
 ============================================================ */
 
 /* ------------------------------------------------------------
-   IMPORTANT FIX:
-   Do NOT redeclare Logic using const or let.
-   Assign to the global Logic reference.
+   IMPORTANT:
+   Use global Logic reference — do NOT redeclare it.
 ------------------------------------------------------------ */
 Logic = window.VolcanoLogic;
 
@@ -46,6 +45,7 @@ window.SettingsUI = {
         const c = document.getElementById("settings-container");
 
         o.classList.toggle("hidden", !this.open);
+
         if (!this.open) {
             c.innerHTML = "";
             return;
@@ -83,6 +83,7 @@ window.SettingsUI = {
 
         sb.appendChild(makeBtn("about", "ABOUT"));
 
+        // logout
         const logout = document.createElement("div");
         logout.textContent = "LOG OUT";
         logout.className = "settingsTabButton";
@@ -142,7 +143,7 @@ window.SettingsUI = {
             btn.className =
                 `px-2 py-1 rounded ${acc.avatar === av ? "bg-yellow-300" : "bg-white text-black"}`;
             btn.onclick = () => {
-                Logic.Auth.setAvatar(av);
+                Logic.Auth.changeAvatar(av);
                 renderApp();
                 this.render();
             };
@@ -224,15 +225,15 @@ window.SettingsUI = {
         box.appendChild(h);
 
         const p = document.createElement("p");
-        p.textContent = "You control the lava. Clear comments and reset chaos.";
+        p.textContent = "Moderation & lava control.";
         p.className = "mb-2 text-sm";
         box.appendChild(p);
 
         const btn = document.createElement("button");
-        btn.textContent = "Clear All Comments (All Communities)";
+        btn.textContent = "Clear All Comments";
         btn.className = "bg-red-500 px-6 py-2 rounded text-lg";
         btn.onclick = () => {
-            Logic.Mod.clearAllComments();
+            Logic.Storage.clearAllComments();
             renderApp();
             this.render();
         };
@@ -254,7 +255,7 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a tiny Reddit-style lava pit. Join volcanoes, post, roast, report, ban, verify, and watch the magma rise.";
+            "VolcanoChat is a chaotic, lava-powered discussion pit. Join volcanoes, roast friends, post comments, and cause eruptions.";
         p.className = "max-w-md mx-auto text-center";
         box.appendChild(p);
 
