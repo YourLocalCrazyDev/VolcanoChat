@@ -1,67 +1,24 @@
 /* ============================================================
-   VolcanoChat — Persistent LocalStorage Storage Engine
-   ============================================================ */
-
-const STORAGE_KEY = "VolcanoChat_Data";
+   VolcanoChat — Temporary Storage (Display Name Version)
+   (RAM-based storage — resets on refresh)
+============================================================ */
 
 const Storage = {
+    accounts: {},          // { username: { password, avatar, mood, displayName } }
+    activeUser: null,      // currently logged-in username (ID)
 
-    accounts: {},
-    activeUser: null,
+    communities: {},       // { slug: { ...communityData } }
+    comments: {},          // { slug: [ commentObjects ] }
 
-    communities: {},
-    comments: {},
-    votes: {},
-    reports: [],
-    warnings: {},
-    bans: {},
+    votes: {},             // { "username|commentId": 1 or -1 }
+    reports: [],           // moderation reports
+    warnings: {},          // { username: count }
+    bans: {},              // { username: { until: timestamp|null } }
 
-    /* ------------------------------------------------------------
-       SAVE EVERYTHING TO LOCALSTORAGE
-    ------------------------------------------------------------ */
-    save() {
-        const data = {
-            accounts: this.accounts,
-            activeUser: this.activeUser,
-            communities: this.communities,
-            comments: this.comments,
-            votes: this.votes,
-            reports: this.reports,
-            warnings: this.warnings,
-            bans: this.bans
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    },
-
-    /* ------------------------------------------------------------
-       LOAD EVERYTHING FROM LOCALSTORAGE
-    ------------------------------------------------------------ */
-    load() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return; // first time user
-
-        try {
-            const data = JSON.parse(raw);
-
-            this.accounts = data.accounts || {};
-            this.activeUser = data.activeUser || null;
-            this.communities = data.communities || {};
-            this.comments = data.comments || {};
-            this.votes = data.votes || {};
-            this.reports = data.reports || [];
-            this.warnings = data.warnings || {};
-            this.bans = data.bans || {};
-
-        } catch (err) {
-            console.error("Storage load failed:", err);
-        }
-    },
-
-    /* ------------------------------------------------------------
+    /* -------------------------
        RESET EVERYTHING
-    ------------------------------------------------------------ */
+    ------------------------- */
     resetAll() {
-        localStorage.removeItem(STORAGE_KEY);
         this.accounts = {};
         this.activeUser = null;
         this.communities = {};
@@ -72,19 +29,19 @@ const Storage = {
         this.bans = {};
     },
 
-    /* ------------------------------------------------------------
-       ACCOUNT HANDLING
-    ------------------------------------------------------------ */
-    createAccount(username, password, avatar) {
+    /* -------------------------
+       ACCOUNTS
+    ------------------------- */
+    createAccount(username, password, avatar, displayName) {
         if (this.accounts[username]) return false;
 
         this.accounts[username] = {
             password,
             avatar,
-            mood: ""
+            mood: "",
+            displayName: displayName || username   // default displayName is username
         };
 
-        this.save();
         return true;
     },
 
@@ -92,15 +49,12 @@ const Storage = {
         const acc = this.accounts[username];
         if (!acc) return "NO_ACCOUNT";
         if (acc.password !== password) return "WRONG_PASSWORD";
-
         this.activeUser = username;
-        this.save();
         return "OK";
     },
 
     logout() {
         this.activeUser = null;
-        this.save();
     },
 
     updateAccount(username, data) {
@@ -108,63 +62,51 @@ const Storage = {
 
         Object.assign(this.accounts[username], data);
 
-        // update avatar/mood across comments too:
+        // update ALL comments made by this user
         for (const slug in this.comments) {
             this.comments[slug] = this.comments[slug].map(c =>
-                c.user === username ? { ...c, ...data } : c
+                c.user === username
+                    ? { ...c, ...data } // includes displayName, avatar, mood
+                    : c
             );
         }
-
-        this.save();
     },
 
-    /* ------------------------------------------------------------
+    /* -------------------------
        COMMUNITIES
-    ------------------------------------------------------------ */
+    ------------------------- */
     createCommunity(slug, data) {
         if (this.communities[slug]) return false;
         this.communities[slug] = data;
         this.comments[slug] = [];
-        this.save();
         return true;
     },
 
     addComment(slug, commentObj) {
         if (!this.comments[slug]) this.comments[slug] = [];
         this.comments[slug].push(commentObj);
-        this.save();
     },
 
-    /* ------------------------------------------------------------
+    /* -------------------------
        VOTING
-    ------------------------------------------------------------ */
+    ------------------------- */
     setVote(key, value) {
         this.votes[key] = value;
-        this.save();
     },
 
-    /* ------------------------------------------------------------
+    /* -------------------------
        REPORTS / MODERATION
-    ------------------------------------------------------------ */
-    addReport(r) {
-        this.reports.push(r);
-        this.save();
+    ------------------------- */
+    addReport(reportObj) {
+        this.reports.push(reportObj);
     },
 
     banUser(username, until) {
         this.bans[username] = { until };
-        this.save();
     },
 
     warnUser(username) {
         this.warnings[username] = (this.warnings[username] || 0) + 1;
-        this.save();
     }
 };
 
-/* ------------------------------------------------------------
-   LOAD DATA IMMEDIATELY ON SCRIPT LOAD
------------------------------------------------------------- */
-Storage.load();
-
-window.Storage = Storage;
