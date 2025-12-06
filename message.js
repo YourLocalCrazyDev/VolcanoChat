@@ -1,5 +1,5 @@
 /* ============================================================
-   VolcanoChat — MESSAGE & OVERLAY UI (Display Name Edition)
+   VolcanoChat — MESSAGE & OVERLAY UI
    Handles:
    - Notifications overlay
    - Profile overlay
@@ -162,8 +162,7 @@ window.MessageUI = {
             const p = el("p", "mb-2 text-sm");
 
             p.innerHTML = `
-                ${cm.avatar} <b>${account.displayName}</b>
-                <span class="opacity-70">@${cm.user}</span>:
+                ${cm.avatar} <b>${cm.user}</b>:
                 ${cm.text}
                 <span class="text-xs text-gray-400">
                     [${Logic.Storage.communities[cm.community]?.name}]
@@ -190,12 +189,8 @@ window.MessageUI = {
 
                 const box = el("div", "border border-gray-500 rounded p-2 mb-2 text-sm");
                 box.innerHTML = `
-                    <p><b>Target:</b> ${acc.displayName} 
-                        <span class="opacity-70">@${r.target}</span>
-                    </p>
-                    <p><b>Reporter:</b> ${Logic.Storage.accounts[r.reporter]?.displayName}
-                        <span class="opacity-70">@${r.reporter}</span>
-                    </p>
+                    <p><b>Target:</b> ${r.target}</p>
+                    <p><b>Reporter:</b> ${r.reporter}</p>
                     <p><b>Reason:</b> ${r.reason}</p>
                     <p class="text-xs">${new Date(r.time).toLocaleString()}</p>
                 `;
@@ -271,13 +266,10 @@ window.MessageUI = {
         // avatar
         c.appendChild(el("div", "text-6xl mb-3", acc.avatar));
 
-        // display name
-        const dn = el("h2", "text-3xl font-bold", acc.displayName);
-        if (Logic.isBanned(uname)) dn.classList.add("text-red-400");
-        c.appendChild(dn);
-
-        // @username
-        c.appendChild(el("p", "opacity-70 -mt-1 mb-3", `@${uname}`));
+        // username
+        const name = el("h2", "text-3xl font-bold", uname);
+        if (Logic.isBanned(uname)) name.classList.add("text-red-400");
+        c.appendChild(name);
 
         // mood
         c.appendChild(
@@ -311,8 +303,7 @@ window.MessageUI = {
         Logic.Comments.getAllByUser(uname).forEach(cm => {
             const p = el("p", "mb-2");
             p.innerHTML = `
-                ${cm.avatar} <b>${acc.displayName}</b>
-                <span class="opacity-70">@${uname}</span>:
+                ${cm.avatar} <b>${cm.user}</b>:
                 ${cm.text}
                 <span class="text-blue-300">(${Logic.Storage.communities[cm.community]?.name})</span>
             `;
@@ -337,83 +328,4 @@ window.MessageUI = {
 
         c.innerHTML = "";
         c.className =
-            "bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto text-white relative";
-
-        const close = el("button", "absolute top-2 right-3 text-3xl", "❌");
-        close.onclick = () => {
-            this.showCreate = false;
-            this.render();
-        };
-        c.appendChild(close);
-
-        c.appendChild(el("h2", "text-2xl mb-3", "Create a Volcano"));
-
-        // Name
-        c.appendChild(el("label", "text-sm", "Community name"));
-        const name = el("input", "w-full border rounded px-3 py-2 mb-3 text-black");
-        name.placeholder = "John's Jamboree";
-        name.oninput = e => (this.newCommName = e.target.value);
-        c.appendChild(name);
-
-        // Desc
-        c.appendChild(el("label", "text-sm", "Description"));
-        const desc = document.createElement("textarea");
-        desc.className = "w-full border rounded px-3 py-2 mb-3 text-black";
-        desc.rows = 3;
-        desc.placeholder = "Describe your community...";
-        desc.oninput = e => (this.newCommDesc = e.target.value);
-        c.appendChild(desc);
-
-        // Icon picker
-        c.appendChild(el("label", "text-sm block mb-1", "Choose icon"));
-
-        const iconBox = el(
-            "div",
-            "flex flex-wrap gap-2 text-2xl bg-slate-800 rounded p-2 max-h-40 overflow-y-auto mb-4"
-        );
-
-        Logic.communityIconList.forEach(ic => {
-            const btn = el(
-                "button",
-                `px-2 py-1 rounded ${
-                    this.newCommIcon === ic ? "bg-orange-400" : "bg-slate-700"
-                }`,
-                ic
-            );
-            btn.onclick = () => {
-                this.newCommIcon = ic;
-                this.renderCreate();
-            };
-            iconBox.appendChild(btn);
-        });
-        c.appendChild(iconBox);
-
-        // Create button
-        const createBtn = el(
-            "button",
-            "bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded w-full",
-            "Create Volcano"
-        );
-        createBtn.onclick = () => {
-            const name = this.newCommName?.trim();
-            if (!name) return alert("Community needs a name.");
-
-            const slug = Logic.slugify(name);
-            if (!slug) return alert("Invalid name.");
-            if (Logic.Storage.communities[slug])
-                return alert("Already exists.");
-
-            Logic.Community.create(
-                name,
-                this.newCommDesc?.trim() || "A VolcanoChat community.",
-                this.newCommIcon
-            );
-
-            UI.currentCommunity = slug;
-            this.showCreate = false;
-            this.toast("Community created!");
-            renderApp();
-        };
-        c.appendChild(createBtn);
-    }
-};
+            "bg-slate-900 bg-opacity-90 rounded-xl
