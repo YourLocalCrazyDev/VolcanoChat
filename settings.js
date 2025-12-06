@@ -169,13 +169,13 @@ window.SettingsUI = {
                 (acc.avatar === av ? "ring-2 ring-orange-400" : "");
 
             btn.onclick = () => {
-                // UPDATE AVATAR — FIXED FUNCTION
+                // ✅ UPDATE AVATAR
                 Logic.Auth.setAvatar(av);
 
-                // Update UI everywhere
+                // Update main UI (greeting, comments, etc.)
                 renderApp();
 
-                // Redraw only the panel (keeps focus)
+                // Refresh only panel so highlight ring updates
                 this.rerenderPanel();
             };
 
@@ -195,7 +195,6 @@ window.SettingsUI = {
         mood.placeholder = "Enter your mood";
 
         mood.value = this.tempMood;
-
         mood.oninput = e => {
             this.tempMood = e.target.value;
         };
@@ -292,7 +291,7 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a chaotic experimental social playground built entirely in vanilla JS.";
+            "VolcanoChat is a tiny chaotic lava pit social experiment built entirely in vanilla JS.";
         wrap.appendChild(p);
 
         return wrap;
