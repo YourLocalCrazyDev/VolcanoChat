@@ -5,56 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VolcanoChat 🌋</title>
 
-    <!-- Tailwind CSS -->
+    <!-- Tailwind (CDN OK for now) -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css">
 </head>
-
 <body class="min-h-screen bg-orange-50 text-slate-900">
 
-    <!-- MAIN APP ROOT -->
-    <div id="app-root"></div>
-
-    <!-- SETTINGS OVERLAY -->
-    <div id="settings-overlay"
-         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
-        <div id="settings-container"></div>
-    </div>
-
-    <!-- PROFILE OVERLAY -->
-    <div id="profile-overlay"
-         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
-        <div id="profile-container"></div>
-    </div>
-
-    <!-- NOTIFICATIONS OVERLAY -->
-    <div id="notifications-overlay"
-         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
-        <div id="notifications-container"></div>
-    </div>
-
-    <!-- CREATE COMMUNITY OVERLAY -->
-    <div id="create-overlay"
-         class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
-        <div id="create-container"></div>
-    </div>
-
+    <!-- ============================================================
+         MAIN APP ROOT
+    ============================================================ -->
+    <div id="app-root" class="p-4"></div>
 
     <!-- ============================================================
-         CORRECT SCRIPT ORDER — DO NOT CHANGE
-         ============================================================ -->
+         SETTINGS OVERLAY
+    ============================================================ -->
+    <div id="settings-overlay"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="settings-container"
+            class="bg-slate-900 text-white p-6 rounded-xl shadow-xl flex max-h-[80vh] overflow-y-auto">
+        </div>
+    </div>
 
-    <!-- Storage & Logic must load FIRST -->
+    <!-- ============================================================
+         NOTIFICATIONS OVERLAY
+    ============================================================ -->
+    <div id="notifications-overlay"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="notifications-container"
+            class="bg-black bg-opacity-70 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto text-white relative">
+        </div>
+    </div>
+
+    <!-- ============================================================
+         PROFILE OVERLAY
+    ============================================================ -->
+    <div id="profile-overlay"
+        class="hidden fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="profile-container"
+            class="bg-black bg-opacity-40 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto text-white relative">
+        </div>
+    </div>
+
+    <!-- ============================================================
+         CREATE COMMUNITY OVERLAY
+    ============================================================ -->
+    <div id="create-overlay"
+        class="hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="create-container"
+            class="bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto text-white relative">
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TOAST BOX (created dynamically, but empty div is fine)
+    ============================================================ -->
+    <div id="toast-box" style="display:none;"></div>
+
+    <!-- ============================================================
+         SCRIPT ORDER (CRITICAL)
+         1. storage.js
+         2. logic.js
+         3. message.js
+         4. settings.js
+         5. ui.js (must load last)
+    ============================================================ -->
+
     <script src="storage.js"></script>
     <script src="logic.js"></script>
-
-    <!-- UI Modules load NEXT -->
     <script src="message.js"></script>
     <script src="settings.js"></script>
-
-    <!-- Main Renderer loads LAST -->
     <script src="ui.js"></script>
 
 </body>
