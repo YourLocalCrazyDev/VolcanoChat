@@ -1,5 +1,5 @@
 /* ============================================================
-   VolcanoChat — FINAL SETTINGS UI (No-Deselect + Avatar Fix)
+   VolcanoChat — SETTINGS UI (Stable, Avatar + Mood Working)
 ============================================================ */
 
 Logic = window.VolcanoLogic;
@@ -8,7 +8,8 @@ window.SettingsUI = {
     open: false,
     tab: "profile",
 
-    tempMood: "",  // local mood buffer (typing does NOT rerender)
+    // local buffer for mood so we don't rerender on every keystroke
+    tempMood: "",
 
     /* ------------------------------------------------------------
        OPEN SETTINGS
@@ -20,26 +21,29 @@ window.SettingsUI = {
         if (user) {
             const acc = Logic.Storage.accounts[user];
             this.tempMood = acc.mood || "";
+        } else {
+            this.tempMood = "";
         }
 
         this.render();
     },
 
     /* ------------------------------------------------------------
-       CLOSE SETTINGS (SAVE MOOD HERE)
+       CLOSE SETTINGS (SAVE MOOD WHEN CLOSING)
     ------------------------------------------------------------ */
     hide() {
         const user = Logic.Storage.activeUser;
         if (user) {
+            // apply whatever is in tempMood to the account
             Logic.Auth.setMood(this.tempMood);
         }
 
         this.open = false;
-        renderApp();  // close + refresh main UI
+        renderApp(); // refresh main UI; SettingsUI.render() will hide overlay
     },
 
     /* ------------------------------------------------------------
-       SWITCH TABS
+       CHANGE TAB
     ------------------------------------------------------------ */
     setTab(tab) {
         this.tab = tab;
@@ -47,40 +51,40 @@ window.SettingsUI = {
     },
 
     /* ------------------------------------------------------------
-       RENDER ROOT OVERLAY
+       FULL RENDER OF OVERLAY
     ------------------------------------------------------------ */
     render() {
         const overlay = document.getElementById("settings-overlay");
-        const box = document.getElementById("settings-container");
+        const container = document.getElementById("settings-container");
 
         overlay.classList.toggle("hidden", !this.open);
-        if (!this.open) return;
+        if (!this.open) {
+            container.innerHTML = "";
+            return;
+        }
 
-        // rebuild container
-        box.innerHTML = "";
-        box.className =
+        container.innerHTML = "";
+        container.className =
             "bg-slate-900 text-white p-6 rounded-xl shadow-xl flex gap-6 max-h-[80vh] overflow-y-auto";
 
-        box.appendChild(this.renderSidebar());
-        box.appendChild(this.renderPanel());
+        container.appendChild(this.renderSidebar());
+        container.appendChild(this.renderPanel());
     },
 
     /* ------------------------------------------------------------
-       PANEL-ONLY RERENDER (used for avatar fixes)
+       PANEL-ONLY RERENDER (used after avatar change)
     ------------------------------------------------------------ */
     rerenderPanel() {
-        const box = document.getElementById("settings-container");
-
-        // If panel already exists, remove it
-        if (box.children.length > 1) {
-            box.removeChild(box.children[1]);
+        const container = document.getElementById("settings-container");
+        // children[0] = sidebar, children[1] = panel
+        if (container.children.length > 1) {
+            container.removeChild(container.children[1]);
         }
-
-        box.appendChild(this.renderPanel());
+        container.appendChild(this.renderPanel());
     },
 
     /* ============================================================
-       SIDEBAR BUTTONS
+       SIDEBAR
     ============================================================ */
     renderSidebar() {
         const sb = document.createElement("div");
@@ -94,7 +98,6 @@ window.SettingsUI = {
                 (this.tab === id
                     ? "bg-slate-700"
                     : "bg-slate-800 hover:bg-slate-700");
-
             b.onclick = () => this.setTab(id);
             return b;
         };
@@ -102,12 +105,12 @@ window.SettingsUI = {
         sb.appendChild(makeBtn("PROFILE", "profile"));
         sb.appendChild(makeBtn("THEME", "theme"));
 
-        if (Logic.Storage.activeUser === Logic.ADMIN)
+        if (Logic.Storage.activeUser === Logic.ADMIN) {
             sb.appendChild(makeBtn("ADMIN", "admin"));
+        }
 
         sb.appendChild(makeBtn("ABOUT", "about"));
 
-        // Logout
         const logout = document.createElement("button");
         logout.textContent = "LOG OUT";
         logout.className =
@@ -133,7 +136,8 @@ window.SettingsUI = {
 
     /* ============================================================
        PROFILE TAB
-       (Mood input does NOT rerender. Avatar buttons DO rerender panel only.)
+       - Avatar click: updates account + UI
+       - Mood: uses temp buffer, no rerender, saved on close
     ============================================================ */
     renderProfile() {
         const wrap = document.createElement("div");
@@ -149,9 +153,10 @@ window.SettingsUI = {
         const user = Logic.Storage.activeUser;
         const acc = Logic.Storage.accounts[user];
 
-        /* ---------------- Avatar Grid ---------------- */
+        /* ---- Avatar Grid ---- */
         const avLabel = document.createElement("p");
         avLabel.textContent = "Choose Avatar:";
+        avLabel.className = "mb-1";
         wrap.appendChild(avLabel);
 
         const grid = document.createElement("div");
@@ -161,15 +166,18 @@ window.SettingsUI = {
         Logic.avatarList.forEach(av => {
             const btn = document.createElement("button");
             btn.textContent = av;
-
             btn.className =
                 "text-2xl p-2 rounded bg-slate-700 hover:bg-slate-600 cursor-pointer " +
                 (acc.avatar === av ? "ring-2 ring-orange-400" : "");
 
             btn.onclick = () => {
+                // update account avatar
                 Logic.Auth.changeAvatar(av);
 
-                // ONLY refresh right panel — does NOT break mood input
+                // update main UI avatar (greeting, comments, etc.)
+                renderApp();
+
+                // redraw only the right panel so ring highlight updates
                 this.rerenderPanel();
             };
 
@@ -178,7 +186,7 @@ window.SettingsUI = {
 
         wrap.appendChild(grid);
 
-        /* ---------------- Mood Input ---------------- */
+        /* ---- Mood Input ---- */
         const moodLabel = document.createElement("p");
         moodLabel.textContent = "Your Mood:";
         moodLabel.className = "mt-4 mb-1";
@@ -188,12 +196,10 @@ window.SettingsUI = {
         mood.className = "w-full p-2 rounded bg-slate-800";
         mood.placeholder = "Enter your mood";
 
-        // Use temp local value (NOT live account)
+        // use local buffer (no DOM rebuild)
         mood.value = this.tempMood;
-
-        // DO NOT RERENDER ANYTHING
         mood.oninput = e => {
-            this.tempMood = e.target.value; // stored for later saving
+            this.tempMood = e.target.value; // just update buffer
         };
 
         wrap.appendChild(mood);
@@ -215,10 +221,15 @@ window.SettingsUI = {
         title.className = "text-2xl mb-4 font-bold";
         wrap.appendChild(title);
 
+        const sub = document.createElement("p");
+        sub.textContent = "Choose your lava style.";
+        sub.className = "mb-3";
+        wrap.appendChild(sub);
+
         const row = document.createElement("div");
         row.className = "flex gap-3";
 
-        const mk = (label, id) => {
+        const makeThemeBtn = (label, id) => {
             const b = document.createElement("button");
             b.textContent = label;
             b.className =
@@ -230,9 +241,9 @@ window.SettingsUI = {
             return b;
         };
 
-        row.appendChild(mk("Lava Light", "A"));
-        row.appendChild(mk("Molten Dark", "B"));
-        row.appendChild(mk("Eruption Mix", "C"));
+        row.appendChild(makeThemeBtn("Lava Light", "A"));
+        row.appendChild(makeThemeBtn("Molten Dark", "B"));
+        row.appendChild(makeThemeBtn("Eruption Mix", "C"));
 
         wrap.appendChild(row);
         return wrap;
@@ -253,9 +264,9 @@ window.SettingsUI = {
         wrap.appendChild(title);
 
         const btn = document.createElement("button");
-        btn.textContent = "Clear All Comments";
+        btn.textContent = "Clear All Comments (All Communities)";
         btn.className =
-            "bg-red-600 px-6 py-2 rounded text-lg cursor-pointer hover:bg-red-700";
+            "bg-red-600 hover:bg-red-700 px-6 py-2 rounded text-lg cursor-pointer";
         btn.onclick = () => {
             Storage.comments = {};
             renderApp();
@@ -282,14 +293,14 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a chaotic experimental social playground written entirely in vanilla JS.";
+            "VolcanoChat is a tiny chaotic lava pit social experiment built entirely in vanilla JS.";
         wrap.appendChild(p);
 
         return wrap;
     },
 
     /* ============================================================
-       CLOSE BUTTON
+       CLOSE BUTTON (top-right)
     ============================================================ */
     renderCloseBtn() {
         const b = document.createElement("button");
