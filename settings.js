@@ -1,26 +1,13 @@
 /* ============================================================
-   VolcanoChat — SETTINGS OVERLAY UI
-   Handles:
-   - Profile tab (avatar, mood)
-   - Theme tab
-   - Admin tab (clear comments)
-   - About tab
-   - Logout
-============================================================ */
+   VolcanoChat — SETTINGS UI (Modern Volcano Theme)
+   ============================================================ */
 
-/* ------------------------------------------------------------
-   IMPORTANT:
-   Use global Logic reference — do NOT redeclare it.
------------------------------------------------------------- */
 Logic = window.VolcanoLogic;
 
 window.SettingsUI = {
     open: false,
-    tab: "profile",   // profile | theme | admin | about
+    tab: "profile",
 
-    /* ------------------------------------------------------------
-       PUBLIC SHOW/HIDE
-    ------------------------------------------------------------ */
     show() {
         this.open = true;
         this.tab = "profile";
@@ -38,89 +25,97 @@ window.SettingsUI = {
     },
 
     /* ------------------------------------------------------------
-       RENDER ENTRY POINT
+       RENDER ENTRY
     ------------------------------------------------------------ */
     render() {
-        const o = document.getElementById("settings-overlay");
-        const c = document.getElementById("settings-container");
+        const overlay = document.getElementById("settings-overlay");
+        const container = document.getElementById("settings-container");
 
-        o.classList.toggle("hidden", !this.open);
+        overlay.classList.toggle("hidden", !this.open);
 
         if (!this.open) {
-            c.innerHTML = "";
+            container.innerHTML = "";
             return;
         }
 
-        c.innerHTML = "";
-        c.className = "flex";
+        // Clean + centered card
+        container.innerHTML = "";
+        container.className =
+            "bg-slate-800 text-white shadow-2xl rounded-xl p-6 flex gap-6 w-[700px] max-h-[85vh] overflow-y-auto";
 
-        c.appendChild(this.renderSidebar());
-        c.appendChild(this.renderPanel());
+        container.appendChild(this.renderSidebar());
+        container.appendChild(this.renderPanel());
     },
 
     /* ============================================================
-       SIDEBAR (left column)
-    ============================================================= */
+       SIDEBAR
+    ============================================================ */
     renderSidebar() {
         const sb = document.createElement("div");
-        sb.className = "settingsSidebar text-white";
+        sb.className =
+            "w-40 flex flex-col gap-3 text-sm font-semibold";
 
-        const makeBtn = (id, label) => {
-            const b = document.createElement("div");
+        const makeTab = (id, label) => {
+            const b = document.createElement("button");
             b.textContent = label;
+
             b.className =
-                "settingsTabButton " +
-                (this.tab === id ? "active" : "");
+                "px-3 py-2 rounded text-left transition " +
+                (this.tab === id
+                    ? "bg-orange-500"
+                    : "hover:bg-slate-700 bg-slate-900");
+
             b.onclick = () => this.setTab(id);
             return b;
         };
 
-        sb.appendChild(makeBtn("profile", "PROFILE"));
-        sb.appendChild(makeBtn("theme", "THEME"));
+        sb.appendChild(makeTab("profile", "PROFILE"));
+        sb.appendChild(makeTab("theme", "THEME"));
 
         if (Logic.Storage.activeUser === Logic.ADMIN)
-            sb.appendChild(makeBtn("admin", "ADMIN"));
+            sb.appendChild(makeTab("admin", "ADMIN"));
 
-        sb.appendChild(makeBtn("about", "ABOUT"));
+        sb.appendChild(makeTab("about", "ABOUT"));
 
-        // logout
-        const logout = document.createElement("div");
+        const logout = document.createElement("button");
         logout.textContent = "LOG OUT";
-        logout.className = "settingsTabButton";
+        logout.className =
+            "mt-4 px-3 py-2 rounded bg-red-600 hover:bg-red-700";
         logout.onclick = () => {
             Logic.Auth.logout();
             this.hide();
             renderApp();
         };
-        sb.appendChild(logout);
 
+        sb.appendChild(logout);
         return sb;
     },
 
     /* ============================================================
-       RIGHT PANEL CONTENT
-    ============================================================= */
+       RIGHT PANEL
+    ============================================================ */
     renderPanel() {
-        const panel = document.createElement("div");
-        panel.className = "settingsPanel text-white relative";
+        const p = document.createElement("div");
+        p.className = "flex-1 relative";
 
-        const close = document.createElement("span");
-        close.textContent = "❌";
-        close.className = "closeButton";
+        const close = document.createElement("button");
+        close.textContent = "✕";
+        close.className =
+            "absolute right-0 top-0 text-xl hover:text-red-400";
         close.onclick = () => this.hide();
-        panel.appendChild(close);
+        p.appendChild(close);
 
-        if (this.tab === "profile") panel.appendChild(this.renderProfile());
-        if (this.tab === "theme") panel.appendChild(this.renderTheme());
-        if (this.tab === "admin") panel.appendChild(this.renderAdmin());
-        if (this.tab === "about") panel.appendChild(this.renderAbout());
+        if (this.tab === "profile") p.appendChild(this.renderProfile());
+        if (this.tab === "theme") p.appendChild(this.renderTheme());
+        if (this.tab === "admin") p.appendChild(this.renderAdmin());
+        if (this.tab === "about") p.appendChild(this.renderAbout());
 
-        return panel;
+        return p;
     },
 
     /* ============================================================
        PROFILE TAB
-    ============================================================= */
+    ============================================================ */
     renderProfile() {
         const user = Logic.Storage.activeUser;
         const acc = Logic.Storage.accounts[user];
@@ -129,79 +124,93 @@ window.SettingsUI = {
 
         const h = document.createElement("h2");
         h.textContent = "Profile Settings";
-        h.className = "text-3xl mb-4";
+        h.className = "text-3xl font-bold mb-4";
         box.appendChild(h);
 
-        box.appendChild(document.createTextNode("Choose Avatar:"));
-        const avBox = document.createElement("div");
-        avBox.className =
-            "flex flex-wrap gap-2 text-3xl justify-center mb-6 max-h-40 overflow-y-auto";
+        // Avatar grid
+        const label = document.createElement("p");
+        label.textContent = "Choose Avatar:";
+        label.className = "mb-2 text-sm";
+        box.appendChild(label);
+
+        const grid = document.createElement("div");
+        grid.className =
+            "grid grid-cols-8 gap-2 bg-slate-900 p-3 rounded max-h-40 overflow-y-auto text-3xl";
 
         Logic.avatarList.forEach(av => {
             const btn = document.createElement("button");
             btn.textContent = av;
+
             btn.className =
-                `px-2 py-1 rounded ${acc.avatar === av ? "bg-yellow-300" : "bg-white text-black"}`;
+                `rounded p-1 transition ${
+                    acc.avatar === av
+                        ? "bg-yellow-400"
+                        : "bg-white text-black hover:bg-yellow-200"
+                }`;
+
             btn.onclick = () => {
                 Logic.Auth.changeAvatar(av);
                 renderApp();
                 this.render();
             };
-            avBox.appendChild(btn);
+
+            grid.appendChild(btn);
         });
 
-        box.appendChild(avBox);
+        box.appendChild(grid);
 
+        // Mood box
         const moodLabel = document.createElement("p");
         moodLabel.textContent = "Your Mood:";
-        moodLabel.className = "mb-1";
+        moodLabel.className = "mt-4 mb-1 text-sm";
         box.appendChild(moodLabel);
 
-        const input = document.createElement("input");
-        input.value = acc.mood || "";
-        input.placeholder = "Enter your mood";
-        input.className = "text-black border rounded px-3 py-2 w-64";
-        input.oninput = e => {
+        const moodInput = document.createElement("input");
+        moodInput.value = acc.mood || "";
+        moodInput.placeholder = "Enter your mood";
+        moodInput.className =
+            "w-64 px-3 py-2 rounded text-black border";
+        moodInput.oninput = e => {
             Logic.Auth.setMood(e.target.value);
             renderApp();
         };
-        box.appendChild(input);
 
+        box.appendChild(moodInput);
         return box;
     },
 
     /* ============================================================
        THEME TAB
-    ============================================================= */
+    ============================================================ */
     renderTheme() {
         const box = document.createElement("div");
 
         const h = document.createElement("h2");
         h.textContent = "Theme Settings";
-        h.className = "text-3xl mb-4";
+        h.className = "text-3xl mb-4 font-bold";
         box.appendChild(h);
-
-        const p = document.createElement("p");
-        p.textContent = "Choose your lava style.";
-        p.className = "mb-2 text-sm";
-        box.appendChild(p);
 
         const row = document.createElement("div");
         row.className = "flex gap-3";
 
-        const makeBtn = (id, label) => {
+        const makeBtn = (id, text) => {
             const b = document.createElement("button");
-            b.textContent = label;
+            b.textContent = text;
+
             b.className =
-                `px-4 py-2 rounded ${UI.theme === id ?
-                    "bg-orange-400" :
-                    "bg-orange-200 text-black"}`;
+                `px-4 py-2 rounded transition ${
+                    UI.theme === id
+                        ? "bg-orange-500"
+                        : "bg-orange-300 hover:bg-orange-400 text-black"
+                }`;
+
             b.onclick = () => {
                 UI.theme = id;
                 localStorage.setItem("themeMode", id);
                 renderApp();
                 this.render();
             };
+
             return b;
         };
 
@@ -215,48 +224,50 @@ window.SettingsUI = {
 
     /* ============================================================
        ADMIN TAB
-    ============================================================= */
+    ============================================================ */
     renderAdmin() {
         const box = document.createElement("div");
 
         const h = document.createElement("h2");
         h.textContent = "Admin Panel";
-        h.className = "text-3xl mb-4 text-yellow-300";
+        h.className = "text-3xl mb-4 font-bold text-yellow-300";
         box.appendChild(h);
 
         const p = document.createElement("p");
-        p.textContent = "Moderation & lava control.";
-        p.className = "mb-2 text-sm";
+        p.textContent = "Moderate the chaos. Manage reports & users.";
+        p.className = "mb-4 text-sm";
         box.appendChild(p);
 
         const btn = document.createElement("button");
         btn.textContent = "Clear All Comments";
-        btn.className = "bg-red-500 px-6 py-2 rounded text-lg";
+        btn.className =
+            "px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-lg";
         btn.onclick = () => {
-            Logic.Storage.clearAllComments();
+            Storage.comments = {};
+            Storage.save();
             renderApp();
             this.render();
         };
-        box.appendChild(btn);
 
+        box.appendChild(btn);
         return box;
     },
 
     /* ============================================================
        ABOUT TAB
-    ============================================================= */
+    ============================================================ */
     renderAbout() {
         const box = document.createElement("div");
 
         const h = document.createElement("h2");
         h.textContent = "About VolcanoChat";
-        h.className = "text-3xl mb-4";
+        h.className = "text-3xl mb-4 font-bold";
         box.appendChild(h);
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a chaotic, lava-powered discussion pit. Join volcanoes, roast friends, post comments, and cause eruptions.";
-        p.className = "max-w-md mx-auto text-center";
+            "VolcanoChat is a chaotic Reddit-style lava pit. Post, roast, report, and survive the magma.";
+        p.className = "opacity-80 max-w-md";
         box.appendChild(p);
 
         return box;
