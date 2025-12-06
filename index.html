@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VolcanoChat 🌋</title>
 
-    <!-- Tailwind CDN -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Custom CSS -->
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -18,35 +18,44 @@
     <div id="app-root"></div>
 
     <!-- SETTINGS OVERLAY -->
-    <div id="settings-overlay" 
+    <div id="settings-overlay"
          class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="settings-container"></div>
     </div>
 
     <!-- PROFILE OVERLAY -->
-    <div id="profile-overlay" 
+    <div id="profile-overlay"
          class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="profile-container"></div>
     </div>
 
     <!-- NOTIFICATIONS OVERLAY -->
-    <div id="notifications-overlay" 
+    <div id="notifications-overlay"
          class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="notifications-container"></div>
     </div>
 
     <!-- CREATE COMMUNITY OVERLAY -->
-    <div id="create-overlay" 
+    <div id="create-overlay"
          class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur z-[9999]">
         <div id="create-container"></div>
     </div>
 
-    <!-- IMPORTANT: LOAD SCRIPTS IN THE CORRECT ORDER -->
+
+    <!-- ============================================================
+         CORRECT SCRIPT ORDER — DO NOT CHANGE
+         ============================================================ -->
+
+    <!-- Storage & Logic must load FIRST -->
     <script src="storage.js"></script>
     <script src="logic.js"></script>
-    <script src="ui.js"></script>
+
+    <!-- UI Modules load NEXT -->
     <script src="message.js"></script>
     <script src="settings.js"></script>
+
+    <!-- Main Renderer loads LAST -->
+    <script src="ui.js"></script>
 
 </body>
 </html>

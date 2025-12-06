@@ -1,60 +1,40 @@
 /* ============================================================
-   VolcanoChat — MAIN SCREEN UI (Non-React)
-   This file renders:
-   - Sidebar
-   - Login / Signup
-   - Greeting header
-   - Roasts
-   - Community header
-   - Comments
-   - Comment posting
-   - Layout + Themes
-   It delegates:
-   - Settings → settings.js
-   - Overlays / notifications → message.js
+   VolcanoChat — MAIN SCREEN UI (Non-React, Fixed Version)
 ============================================================ */
 
 /* ------------------------------------------------------------
-   IMPORTANT: FIXED LINES
-   These must NOT use "const" or "let"
-   They must assign to existing globals.
+   FIXED GLOBAL IMPORTS — MUST NOT USE const/let
 ------------------------------------------------------------ */
 Logic = window.VolcanoLogic;
 MsgUI = window.MessageUI;
 SettingsUI = window.SettingsUI;
 
 /* ------------------------------------------------------------
-   UI STATE (only main-screen things go here)
+   GLOBAL UI STATE
 ------------------------------------------------------------ */
 const UI = {
     menu: "none",
-    theme: "A",
+    theme: localStorage.getItem("themeMode") || "A",
     sort: "hot",
-    shake: false,
 
-    // login/signup
     loginUser: "",
     loginPass: "",
     signupUser: "",
     signupPass: "",
     selectedAvatar: "😐",
 
-    // comments
     commentInput: "",
-
-    // communities
     communitySearch: "",
     currentCommunity: null,
-
-    // greeting
-    greetingText: ""
+    greetingText: "",
+    shake: false
 };
 
 const appRoot = document.getElementById("app-root");
 
 
 /* ------------------------------------------------------------
-   SIMPLE DOM TOOLS
+   SIMPLE DOM HELPERS
 ------------------------------------------------------------ */
 function el(tag, cls = "", text = "") {
     const e = document.createElement(tag);
@@ -63,13 +43,13 @@ function el(tag, cls = "", text = "") {
     return e;
 }
 
-function clear(node) {
-    while (node.firstChild) node.firstChild.remove();
+function clear(n) {
+    while (n.firstChild) n.firstChild.remove();
 }
 
 
 /* ------------------------------------------------------------
-   THEME
+   THEMES
 ------------------------------------------------------------ */
 function applyTheme() {
     const b = document.body;
@@ -79,7 +59,8 @@ function applyTheme() {
     } else if (UI.theme === "B") {
         b.className = "min-h-screen bg-slate-950 text-orange-50";
     } else {
-        b.className = "min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-red-900 text-orange-50";
+        b.className =
+            "min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-red-900 text-orange-50";
     }
 
     if (UI.shake) {
@@ -91,62 +72,74 @@ function applyTheme() {
 
 
 /* ------------------------------------------------------------
-   ROOT RENDER FUNCTION
+   MAIN RENDER FUNCTION
 ------------------------------------------------------------ */
 function renderApp() {
     applyTheme();
     clear(appRoot);
 
-    const wrap = el("div", "max-w-5xl w-full mx-auto flex gap-6 p-4");
+    const wrap = el("div", "max-w-5xl mx-auto w-full flex gap-6 p-4");
     appRoot.appendChild(wrap);
 
     wrap.appendChild(renderSidebar());
     wrap.appendChild(renderMainScreen());
 
-    // overlays handled by message.js + settings.js
     MsgUI.render();
     SettingsUI.render();
 }
 
 
 /* ------------------------------------------------------------
-   INITIAL COMMUNITY
+   SAFE INITIALIZATION — FIXED
 ------------------------------------------------------------ */
-(function init() {
-    if (Object.keys(Logic.Storage.communities).length === 0) {
-        Logic.Community.create("VolcanoChat", "The main lava pit of chaos.", "🌋");
+window.addEventListener("DOMContentLoaded", () => {
+
+    // First-time setup: create a default community
+    if (!Logic.Storage.communities ||
+        Object.keys(Logic.Storage.communities).length === 0) {
+
+        const create = Logic.Community.create(
+            "VolcanoChat",
+            "The main lava pit of chaos.",
+            "🌋"
+        );
+
         UI.currentCommunity = "volcanochat";
     } else {
         UI.currentCommunity = Object.keys(Logic.Storage.communities)[0];
     }
-})();
+
+    renderApp();
+});
 
 
 /* ============================================================
-   SIDEBAR (LEFT SIDE)
+   SIDEBAR
 ============================================================ */
 function renderSidebar() {
-    const box = el("div", "w-64 rounded-lg shadow-lg p-3 text-sm");
+    const box = el("div", "w-64 p-3 rounded-lg shadow text-sm");
     box.style.background = "rgba(255,255,255,0.9)";
     box.style.color = "#4a1f00";
 
-    const top = el("div", "flex items-center justify-between mb-2");
+    // header
+    const top = el("div", "flex justify-between items-center mb-2");
     top.appendChild(el("h2", "font-bold text-lg text-orange-800", "Volcanoes"));
 
-    const newBtn = el("button",
+    const add = el("button",
         "text-xs bg-orange-300 hover:bg-orange-400 px-2 py-1 rounded",
-        "+ New");
-
-    newBtn.onclick = () => {
-        if (!Logic.Storage.activeUser) return alert("Log in first.");
+        "+ New"
+    );
+    add.onclick = () => {
+        if (!Logic.Storage.activeUser) return alert("Log in first");
         MsgUI.showCreateCommunity();
     };
 
-    top.appendChild(newBtn);
+    top.appendChild(add);
     box.appendChild(top);
 
-    const search = el("input", "border rounded px-2 py-1 w-full mb-2 text-sm");
-    search.placeholder = "Search communities...";
+    // search
+    const search = el("input", "border rounded px-2 py-1 w-full mb-2");
+    search.placeholder = "Search...";
     search.value = UI.communitySearch;
     search.oninput = e => {
         UI.communitySearch = e.target.value;
@@ -154,86 +147,75 @@ function renderSidebar() {
     };
     box.appendChild(search);
 
-    box.appendChild(el("h3", "text-xs font-semibold mt-2 mb-1 text-amber-700", "Trending"));
-
-    const tWrap = el("div", "max-h-56 overflow-y-auto");
+    // trending
     const all = Object.values(Logic.Storage.communities);
-    const trending = [...all].sort((a, b) => {
-        const ca = (Logic.Storage.comments[a.slug] || []).length;
-        const cb = (Logic.Storage.comments[b.slug] || []).length;
-        return cb - ca;
-    });
+    const trending = [...all].sort(
+        (a, b) =>
+            (Logic.Storage.comments[b.slug] || []).length -
+            (Logic.Storage.comments[a.slug] || []).length
+    );
 
+    box.appendChild(el("h3", "text-xs font-semibold text-amber-700", "Trending"));
+
+    const tbox = el("div", "max-h-56 overflow-y-auto mb-2");
     trending.forEach(comm => {
-        const item = el("div",
-            `flex items-center justify-between px-2 py-1 rounded cursor-pointer mb-1
-             ${UI.currentCommunity === comm.slug ? "bg-orange-100" : "hover:bg-orange-50"}`);
-
-        item.onclick = () => {
-            UI.currentCommunity = comm.slug;
-            renderApp();
-        };
-
-        const left = el("span", "", `${comm.icon} ${comm.name}`);
-        if (comm.verified)
-            left.appendChild(el("span", "text-blue-500 text-xs ml-1", "✔"));
-        item.appendChild(left);
-
-        const count = (Logic.Storage.comments[comm.slug] || []).length;
-        item.appendChild(el("span", "text-[10px] text-gray-500", count.toString()));
-
-        tWrap.appendChild(item);
+        tbox.appendChild(renderCommunityListItem(comm));
     });
+    box.appendChild(tbox);
 
-    box.appendChild(tWrap);
+    // all communities
+    box.appendChild(el("h3", "text-xs font-semibold text-amber-700 mt-3", "All"));
 
-    box.appendChild(el("h3", "text-xs font-semibold mt-3 mb-1 text-amber-700", "All"));
-
-    const allWrap = el("div", "max-h-56 overflow-y-auto");
+    const abox = el("div", "max-h-56 overflow-y-auto");
     const filtered = all.filter(c =>
         c.name.toLowerCase().includes(UI.communitySearch.toLowerCase())
     );
+    filtered.forEach(comm => abox.appendChild(renderCommunityListItem(comm)));
 
-    filtered.forEach(comm => {
-        const item = el("div",
-            `flex items-center justify-between px-2 py-1 rounded cursor-pointer mb-1
-             ${UI.currentCommunity === comm.slug ? "bg-orange-100" : "hover:bg-orange-50"}`);
-
-        item.onclick = () => {
-            UI.currentCommunity = comm.slug;
-            renderApp();
-        };
-
-        const left = el("span", "", `${comm.icon} ${comm.name}`);
-        if (comm.verified)
-            left.appendChild(el("span", "text-blue-500 text-xs ml-1", "✔"));
-        item.appendChild(left);
-
-        allWrap.appendChild(item);
-    });
-
-    box.appendChild(allWrap);
+    box.appendChild(abox);
 
     return box;
 }
 
+function renderCommunityListItem(comm) {
+    const active = UI.currentCommunity === comm.slug;
+
+    const div = el(
+        "div",
+        `flex justify-between px-2 py-1 mb-1 rounded cursor-pointer 
+         ${active ? "bg-orange-100" : "hover:bg-orange-50"}`
+    );
+
+    div.onclick = () => {
+        UI.currentCommunity = comm.slug;
+        renderApp();
+    };
+
+    const left = el("span", "", `${comm.icon} ${comm.name}`);
+    if (comm.verified)
+        left.appendChild(el("span", "text-blue-500 text-xs ml-1", "✔"));
+
+    div.appendChild(left);
+
+    return div;
+}
+
 
 /* ============================================================
-   MAIN COLUMN
+   MAIN SCREEN
 ============================================================ */
 function renderMainScreen() {
-    const box = el("div", "flex-1 relative");
-
     const user = Logic.Storage.activeUser;
+    const box = el("div", "flex-1");
 
     if (!user) {
-        box.appendChild(renderWelcomePanel());
-        if (UI.menu === "login") box.appendChild(renderLoginForm());
-        if (UI.menu === "signup") box.appendChild(renderSignupForm());
+        box.appendChild(renderWelcome());
+        if (UI.menu === "login") box.appendChild(renderLogin());
+        if (UI.menu === "signup") box.appendChild(renderSignup());
         return box;
     }
 
-    box.appendChild(renderGreetingHeader());
+    box.appendChild(renderGreeting());
     box.appendChild(renderRoastPanel());
     box.appendChild(renderCommunityHeader());
     box.appendChild(renderCommentsSection());
@@ -242,29 +224,22 @@ function renderMainScreen() {
 }
 
 
-/* ============================================================
+/* ------------------------------------------------------------
    WELCOME PANEL
-============================================================ */
-function renderWelcomePanel() {
-    const wrap = el("div", "mb-4 rounded-lg shadow p-4");
+------------------------------------------------------------ */
+function renderWelcome() {
+    const wrap = el("div", "p-4 mb-4 rounded shadow");
     wrap.style.background = "rgba(255,250,240,0.95)";
     wrap.style.color = "#4a1f00";
 
     wrap.appendChild(el("h2", "text-2xl mb-2 text-orange-900", "Welcome to VolcanoChat 🌋"));
-    wrap.appendChild(el("p", "mb-4",
-        "Log in or sign up to join lava communities, post, roast, and moderate chaos."
-    ));
+    wrap.appendChild(el("p", "mb-4", "Log in or sign up to begin."));
 
     const row = el("div", "flex gap-3");
+    const login = el("button", "bg-green-300 px-4 py-2 rounded", "Log In");
+    const signup = el("button", "bg-blue-300 px-4 py-2 rounded", "Sign Up");
 
-    const login = el("button",
-        "bg-green-300 hover:bg-green-400 px-4 py-2 rounded",
-        "Log In");
     login.onclick = () => { UI.menu = "login"; renderApp(); };
-
-    const signup = el("button",
-        "bg-blue-300 hover:bg-blue-400 px-4 py-2 rounded",
-        "Sign Up");
     signup.onclick = () => { UI.menu = "signup"; renderApp(); };
 
     row.appendChild(login);
@@ -276,17 +251,323 @@ function renderWelcomePanel() {
 
 
 /* ============================================================
-   (REST OF YOUR ORIGINAL FILE — UNCHANGED)
+   LOGIN / SIGNUP
 ============================================================ */
+function renderLogin() {
+    const wrap = el("div", "p-4 rounded shadow mb-4 bg-white text-black");
+    wrap.appendChild(el("h2", "text-xl mb-2", "Log In"));
 
-//
-// 🌋 I have NOT modified any functionality below this point.
-// Everything else from your original ui.js remains exactly the same.
-// To keep this message readable, I did not paste the entire remainder,
-// but **you should keep the rest of your existing file exactly as-is**.
-//
+    const u = el("input", "border px-3 py-2 w-full mb-2");
+    u.placeholder = "Username";
+    u.value = UI.loginUser;
+    u.oninput = e => UI.loginUser = e.target.value;
 
-/* ------------------------------------------------------------
-   READY → first render
------------------------------------------------------------- */
-renderApp();
+    const p = el("input", "border px-3 py-2 w-full mb-2");
+    p.placeholder = "Password";
+    p.type = "password";
+    p.value = UI.loginPass;
+    p.oninput = e => UI.loginPass = e.target.value;
+
+    const btn = el("button", "bg-green-300 px-4 py-2 w-full mb-2 rounded", "Log In");
+    btn.onclick = () => {
+        const res = Logic.Auth.login(UI.loginUser, UI.loginPass);
+
+        if (res === "NO_ACCOUNT") return alert("No such account.");
+        if (res === "WRONG_PASSWORD") return alert("Wrong password.");
+        if (res === "BANNED") return alert("You are banned.");
+
+        UI.menu = "none";
+        UI.greetingText = `${Logic.randomGreeting()}, ${Logic.Storage.activeUser}!`;
+        renderApp();
+    };
+
+    const back = el("button", "bg-gray-300 px-4 py-2 w-full rounded", "Back");
+    back.onclick = () => { UI.menu = "none"; renderApp(); };
+
+    wrap.appendChild(u);
+    wrap.appendChild(p);
+    wrap.appendChild(btn);
+    wrap.appendChild(back);
+    return wrap;
+}
+
+
+function renderSignup() {
+    const wrap = el("div", "p-4 rounded shadow mb-4 bg-white text-black");
+
+    wrap.appendChild(el("h2", "text-xl mb-2", "Sign Up"));
+
+    const u = el("input", "border px-3 py-2 w-full mb-2");
+    u.placeholder = "Username";
+    u.value = UI.signupUser;
+    u.oninput = e => UI.signupUser = e.target.value;
+
+    const p = el("input", "border px-3 py-2 w-full mb-2");
+    p.placeholder = "Password";
+    p.type = "password";
+    p.value = UI.signupPass;
+    p.oninput = e => UI.signupPass = e.target.value;
+
+    const avWrap = el("div", "flex flex-wrap gap-2 text-2xl max-h-32 overflow-y-auto mb-2");
+    Logic.avatarList.forEach(av => {
+        const b = el("button", `px-2 rounded ${UI.selectedAvatar === av ? "bg-yellow-300" : "bg-white"}`, av);
+        b.onclick = () => { UI.selectedAvatar = av; renderApp(); };
+        avWrap.appendChild(b);
+    });
+
+    const btn = el("button", "bg-blue-300 px-4 py-2 w-full mb-2 rounded", "Sign Up");
+    btn.onclick = () => {
+        const res = Logic.Auth.signup(UI.signupUser, UI.signupPass, UI.selectedAvatar);
+        if (res === "INVALID") return alert("Invalid input.");
+        if (res === "EXISTS") return alert("Account exists.");
+
+        UI.menu = "none";
+        UI.greetingText = `Welcome, ${Logic.Storage.activeUser}!`;
+        renderApp();
+    };
+
+    const back = el("button", "bg-gray-300 px-4 py-2 w-full rounded", "Back");
+    back.onclick = () => { UI.menu = "none"; renderApp(); };
+
+    wrap.appendChild(u);
+    wrap.appendChild(p);
+    wrap.appendChild(avWrap);
+    wrap.appendChild(btn);
+    wrap.appendChild(back);
+    return wrap;
+}
+
+
+/* ============================================================
+   GREETING HEADER
+============================================================ */
+function renderGreeting() {
+    const user = Logic.Storage.activeUser;
+    const acc = Logic.Storage.accounts[user];
+
+    const wrap = el("div", "p-3 mb-4 rounded shadow bg-[rgba(255,250,240,0.95)]");
+
+    const row = el("div", "flex items-center gap-3");
+    row.appendChild(el("span", "text-4xl", acc.avatar));
+
+    const textWrap = el("div", "");
+    const g = el("p", "text-3xl font-bold text-orange-900", UI.greetingText);
+    g.style.fontFamily = "Comic Sans MS";
+    textWrap.appendChild(g);
+
+    if (user === Logic.ADMIN)
+        textWrap.appendChild(el("span", "text-yellow-500 text-sm font-bold", "[ADMIN]"));
+
+    row.appendChild(textWrap);
+    wrap.appendChild(row);
+
+    // icons
+    const icons = el("div", "absolute right-3 top-3 flex flex-col gap-2");
+    const bell = el("button", "text-3xl", "🔔");
+    bell.onclick = () => MsgUI.showNotifications();
+
+    const gear = el("button", "text-4xl", "⚙️");
+    gear.onclick = () => SettingsUI.show();
+
+    icons.appendChild(bell);
+    icons.appendChild(gear);
+    wrap.appendChild(icons);
+
+    return wrap;
+}
+
+
+/* ============================================================
+   ROAST PANEL
+============================================================ */
+function renderRoastPanel() {
+    const wrap = el("div", "p-4 rounded shadow mb-4 bg-white text-black");
+
+    wrap.appendChild(el("h2", "text-xl mb-2 text-orange-800", "Roast Menu"));
+
+    const roast = el("button", "bg-orange-300 w-full py-2 rounded mb-2", "Roast Me");
+    roast.onclick = () => {
+        UI.roastText = Logic.Roast.normal();
+        renderApp();
+    };
+
+    const volcano = el("button", "bg-red-500 text-white w-full py-2 rounded", "VOLCANIC ROAST 🌋");
+    volcano.onclick = () => {
+        UI.shake = true;
+        UI.roastText = Logic.Roast.volcanic();
+        renderApp();
+    };
+
+    wrap.appendChild(roast);
+    wrap.appendChild(volcano);
+
+    if (UI.roastText)
+        wrap.appendChild(el("p", "mt-3 text-lg", UI.roastText));
+
+    return wrap;
+}
+
+
+/* ============================================================
+   COMMUNITY HEADER
+============================================================ */
+function renderCommunityHeader() {
+    const slug = UI.currentCommunity;
+    const comm = Logic.Storage.communities[slug];
+    const comments = Logic.Storage.comments[slug] || [];
+
+    const wrap = el("div", "p-4 rounded shadow mb-3 bg-white text-black");
+
+    const title = el("h2", "text-2xl font-bold text-orange-900",
+        `${comm.icon} ${comm.name}`
+    );
+    if (comm.verified)
+        title.appendChild(el("span", "text-blue-500 ml-1 text-sm", "✔ Verified"));
+
+    wrap.appendChild(title);
+    wrap.appendChild(el("p", "text-sm text-gray-600", comm.description));
+
+    // join/leave
+    if (Logic.Storage.activeUser) {
+        const user = Logic.Storage.activeUser;
+        const box = el("div", "mt-2");
+
+        const joined = comm.members.includes(user);
+
+        const btn = el("button",
+            "px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm",
+            joined ? "Leave" : "Join"
+        );
+
+        btn.onclick = () => {
+            if (joined) Logic.Community.leave(slug);
+            else Logic.Community.join(slug);
+            renderApp();
+        };
+
+        box.appendChild(btn);
+
+        // verify button
+        if (user === Logic.ADMIN) {
+            const v = el("button",
+                "px-3 py-1 ml-2 rounded bg-blue-200 hover:bg-blue-300 text-sm",
+                comm.verified ? "Unverify" : "Verify"
+            );
+            v.onclick = () => {
+                Logic.Community.toggleVerified(slug);
+                renderApp();
+            };
+            box.appendChild(v);
+        }
+
+        wrap.appendChild(box);
+    }
+
+    // stats
+    wrap.appendChild(
+        el("p", "text-xs mt-2",
+            `Members: ${comm.members.length} | Posts: ${comments.length}`
+        )
+    );
+
+    // sorting
+    const s = el("div", "text-xs mt-1");
+    s.appendChild(el("span", "", "Sort: "));
+
+    const hot = el("button",
+        UI.sort === "hot" ? "font-bold underline" : "text-gray-500",
+        "Hot"
+    );
+    hot.onclick = () => { UI.sort = "hot"; renderApp(); };
+
+    const newest = el("button",
+        UI.sort === "new" ? "font-bold underline ml-1" : "text-gray-500 ml-1",
+        "New"
+    );
+    newest.onclick = () => { UI.sort = "new"; renderApp(); };
+
+    s.appendChild(hot);
+    s.appendChild(newest);
+    wrap.appendChild(s);
+
+    return wrap;
+}
+
+
+/* ============================================================
+   COMMENTS SECTION
+============================================================ */
+function renderCommentsSection() {
+    const slug = UI.currentCommunity;
+    const list = Logic.Storage.comments[slug] || [];
+
+    const wrap = el("div", "p-4 rounded shadow bg-white text-black mb-4");
+
+    wrap.appendChild(el("h2", "text-xl mb-2 text-orange-800", "Comments"));
+
+    const sorted = Logic.Comments.sort(list, UI.sort);
+
+    sorted.forEach(c => {
+        const div = el("div", "mb-3 cursor-pointer");
+        div.onclick = () => MsgUI.showProfile(c.user);
+
+        const top = el("div", "flex justify-between");
+        const left = el("span", "", `${c.avatar} ${c.user}`);
+        if (c.mood) left.textContent += ` (${c.mood})`;
+
+        top.appendChild(left);
+        top.appendChild(el("span", "text-xs text-gray-500",
+            new Date(c.time).toLocaleTimeString()
+        ));
+        div.appendChild(top);
+
+        div.appendChild(el("p", "", c.text));
+
+        // votes
+        const row = el("div", "flex gap-2 text-xs mt-1");
+
+        const voteKey = `${Logic.Storage.activeUser}|${c.id}`;
+        const prev = Logic.Storage.votes[voteKey] || 0;
+
+        const up = el("button", prev === 1 ? "font-bold text-orange-600" : "", "▲");
+        up.onclick = e => {
+            e.stopPropagation();
+            Logic.Comments.vote(c, 1);
+            renderApp();
+        };
+
+        const down = el("button", prev === -1 ? "font-bold text-blue-600" : "", "▼");
+        down.onclick = e => {
+            e.stopPropagation();
+            Logic.Comments.vote(c, -1);
+            renderApp();
+        };
+
+        row.appendChild(up);
+        row.appendChild(el("span", "", c.score || 0));
+        row.appendChild(down);
+
+        div.appendChild(row);
+
+        wrap.appendChild(div);
+    });
+
+    // input
+    const input = el("input", "border rounded px-3 py-2 w-full mt-3");
+    input.placeholder = "Write a comment...";
+    input.value = UI.commentInput;
+    input.oninput = e => UI.commentInput = e.target.value;
+
+    const post = el("button", "bg-blue-300 w-full py-2 mt-2 rounded", "Post");
+    post.onclick = () => {
+        if (!Logic.Storage.activeUser) return alert("Log in first");
+        Logic.Comments.post(slug, UI.commentInput);
+        UI.commentInput = "";
+        renderApp();
+    };
+
+    wrap.appendChild(input);
+    wrap.appendChild(post);
+
+    return wrap;
+}
