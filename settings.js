@@ -1,14 +1,52 @@
 /* ============================================================
-   VolcanoChat — FIXED & POLISHED SETTINGS UI
-   Matches Notifications / Create UI
-   (FINAL VERSION — logout bug removed)
+   VolcanoChat — UPGRADED SETTINGS UI (FINAL VERSION)
+   Includes:
+   - Mood autosave
+   - Toast notification
+   - Avatar picker
+   - Theme selector
+   - Admin panel
+   - No reload, no input reset
 ============================================================ */
 
 Logic = window.VolcanoLogic;
 
+/* ============================================================
+   GLOBAL TOAST FUNCTION
+============================================================ */
+window.showToast = (msg) => {
+    let box = document.getElementById("toast-box");
+    if (!box) {
+        box = document.createElement("div");
+        box.id = "toast-box";
+        document.body.appendChild(box);
+    }
+
+    box.textContent = msg;
+    box.style.display = "flex";
+
+    box.className =
+        "fixed bottom-6 left-1/2 -translate-x-1/2 bg-orange-500 text-white " +
+        "px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300 z-[99999]";
+
+    requestAnimationFrame(() => {
+        box.classList.add("opacity-100");
+    });
+
+    setTimeout(() => {
+        box.classList.remove("opacity-100");
+        setTimeout(() => (box.style.display = "none"), 300);
+    }, 1200);
+};
+
+
+/* ============================================================
+   SETTINGS UI MODULE
+============================================================ */
 window.SettingsUI = {
     open: false,
     tab: "profile",
+    _toastShown: false,
 
     show() {
         this.open = true;
@@ -26,14 +64,13 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       ROOT RENDERER
+       MAIN RENDERER
     ============================================================ */
     render() {
         const overlay = document.getElementById("settings-overlay");
         const box = document.getElementById("settings-container");
 
         overlay.classList.toggle("hidden", !this.open);
-
         if (!this.open) return;
 
         box.innerHTML = "";
@@ -69,7 +106,7 @@ window.SettingsUI = {
 
         wrap.appendChild(makeBtn("ABOUT", "about"));
 
-        /* LOGOUT BUTTON (bug fixed — no reload!) */
+        /* LOGOUT BUTTON — FIXED (NO PAGE RELOAD) */
         const logout = document.createElement("button");
         logout.textContent = "LOG OUT";
         logout.className =
@@ -77,7 +114,7 @@ window.SettingsUI = {
         logout.onclick = () => {
             Logic.Auth.logout();
             this.hide();
-            renderApp();   // FIX: no page reload, storage preserved
+            renderApp();
         };
         wrap.appendChild(logout);
 
@@ -85,7 +122,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       MAIN PANEL SWITCHER
+       PANEL SELECTOR
     ============================================================ */
     renderPanel() {
         const p = document.createElement("div");
@@ -102,7 +139,7 @@ window.SettingsUI = {
     },
 
     /* ============================================================
-       CLOSE BUTTON (matches Notifications UI)
+       CLOSE BUTTON
     ============================================================ */
     renderClose() {
         const b = document.createElement("button");
@@ -124,10 +161,10 @@ window.SettingsUI = {
         title.className = "text-3xl mb-4 font-bold";
         wrap.appendChild(title);
 
-        const user = Logic.Storage.activeUser;
-        const acc = Logic.Storage.accounts[user];
+        const username = Logic.Storage.activeUser;
+        const acc = Logic.Storage.accounts[username];
 
-        /* Avatar selection */
+        /* Avatar Picker */
         wrap.appendChild(document.createTextNode("Choose Avatar:"));
         const grid = document.createElement("div");
         grid.className =
@@ -142,8 +179,8 @@ window.SettingsUI = {
 
             b.onclick = () => {
                 Logic.Auth.changeAvatar(av);
-                this.render();
                 renderApp();
+                this.render();
             };
 
             grid.appendChild(b);
@@ -151,20 +188,28 @@ window.SettingsUI = {
 
         wrap.appendChild(grid);
 
-        /* Mood input */
+        /* Mood Input (UPGRADED) */
         const moodLbl = document.createElement("p");
         moodLbl.textContent = "Your Mood:";
         moodLbl.className = "mb-1";
         wrap.appendChild(moodLbl);
 
         const input = document.createElement("input");
-        input.value = acc.mood || "";
         input.placeholder = "Enter your mood";
+        input.value = acc.mood || "";
         input.className = "w-full p-2 rounded bg-slate-800";
+
         input.oninput = e => {
             Logic.Auth.setMood(e.target.value);
-            renderApp();
+
+            // Show toast only once per short period
+            if (!this._toastShown) {
+                this._toastShown = true;
+                showToast("Mood saved!");
+                setTimeout(() => (this._toastShown = false), 1500);
+            }
         };
+
         wrap.appendChild(input);
 
         return wrap;
@@ -181,15 +226,15 @@ window.SettingsUI = {
         title.className = "text-3xl mb-4 font-bold";
         wrap.appendChild(title);
 
-        const p = document.createElement("p");
-        p.textContent = "Choose your lava style.";
-        p.className = "mb-4";
-        wrap.appendChild(p);
+        const subtitle = document.createElement("p");
+        subtitle.textContent = "Choose your lava style:";
+        subtitle.className = "mb-4";
+        wrap.appendChild(subtitle);
 
         const row = document.createElement("div");
         row.className = "flex gap-3";
 
-        const makeBtn = (label, id) => {
+        const makeThemeBtn = (label, id) => {
             const b = document.createElement("button");
             b.textContent = label;
             b.className =
@@ -202,9 +247,9 @@ window.SettingsUI = {
             return b;
         };
 
-        row.appendChild(makeBtn("Lava Light", "A"));
-        row.appendChild(makeBtn("Molten Dark", "B"));
-        row.appendChild(makeBtn("Eruption Mix", "C"));
+        row.appendChild(makeThemeBtn("Lava Light", "A"));
+        row.appendChild(makeThemeBtn("Molten Dark", "B"));
+        row.appendChild(makeThemeBtn("Eruption Mix", "C"));
 
         wrap.appendChild(row);
         return wrap;
@@ -222,16 +267,16 @@ window.SettingsUI = {
         wrap.appendChild(title);
 
         const btn = document.createElement("button");
-        btn.textContent = "Clear All Comments (All Communities)";
+        btn.textContent = "Clear All Comments";
         btn.className =
             "bg-red-500 px-6 py-2 rounded text-lg cursor-pointer hover:bg-red-600";
         btn.onclick = () => {
-            Storage.comments = {};   // brute force clear
+            Storage.comments = {};
             renderApp();
             this.render();
         };
-        wrap.appendChild(btn);
 
+        wrap.appendChild(btn);
         return wrap;
     },
 
@@ -248,7 +293,7 @@ window.SettingsUI = {
 
         const p = document.createElement("p");
         p.textContent =
-            "VolcanoChat is a chaotic experimental social playground written entirely in vanilla JavaScript.";
+            "VolcanoChat is a chaotic experimental social playground made entirely in vanilla JavaScript.";
         p.className = "opacity-80";
         wrap.appendChild(p);
 
