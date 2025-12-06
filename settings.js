@@ -8,7 +8,12 @@
    - Logout
 ============================================================ */
 
-const Logic = window.VolcanoLogic;
+/* ------------------------------------------------------------
+   IMPORTANT FIX:
+   Do NOT redeclare Logic using const or let.
+   Assign to the global Logic reference.
+------------------------------------------------------------ */
+Logic = window.VolcanoLogic;
 
 window.SettingsUI = {
     open: false,
@@ -58,8 +63,7 @@ window.SettingsUI = {
     ============================================================= */
     renderSidebar() {
         const sb = document.createElement("div");
-        sb.className =
-            "settingsSidebar text-white";
+        sb.className = "settingsSidebar text-white";
 
         const makeBtn = (id, label) => {
             const b = document.createElement("div");
@@ -97,10 +101,8 @@ window.SettingsUI = {
     ============================================================= */
     renderPanel() {
         const panel = document.createElement("div");
-        panel.className =
-            "settingsPanel text-white relative";
+        panel.className = "settingsPanel text-white relative";
 
-        // close button
         const close = document.createElement("span");
         close.textContent = "❌";
         close.className = "closeButton";
@@ -129,7 +131,6 @@ window.SettingsUI = {
         h.className = "text-3xl mb-4";
         box.appendChild(h);
 
-        // avatars
         box.appendChild(document.createTextNode("Choose Avatar:"));
         const avBox = document.createElement("div");
         avBox.className =
@@ -150,7 +151,6 @@ window.SettingsUI = {
 
         box.appendChild(avBox);
 
-        // mood
         const moodLabel = document.createElement("p");
         moodLabel.textContent = "Your Mood:";
         moodLabel.className = "mb-1";
