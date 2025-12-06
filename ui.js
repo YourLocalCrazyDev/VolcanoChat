@@ -1,9 +1,10 @@
 /* ============================================================
-   VolcanoChat — MAIN SCREEN UI (Non-React, Fixed Version)
-============================================================ */
+   VolcanoChat — MAIN SCREEN UI (Non-React, FINAL FIXED VERSION)
+   ============================================================ */
 
 /* ------------------------------------------------------------
-   FIXED GLOBAL IMPORTS — MUST NOT USE const/let
+   GLOBAL IMPORTS
+   (Do NOT use const/let — these must attach to the global scope)
 ------------------------------------------------------------ */
 Logic = window.VolcanoLogic;
 MsgUI = window.MessageUI;
@@ -17,25 +18,27 @@ const UI = {
     theme: localStorage.getItem("themeMode") || "A",
     sort: "hot",
 
+    // login + signup
     loginUser: "",
     loginPass: "",
     signupUser: "",
     signupPass: "",
     selectedAvatar: "😐",
 
+    // comments
     commentInput: "",
+
+    // communities
     communitySearch: "",
     currentCommunity: null,
+
+    // greeting
     greetingText: "",
     shake: false
 };
 
 const appRoot = document.getElementById("app-root");
 
-
-/* ------------------------------------------------------------
-   SIMPLE DOM HELPERS
------------------------------------------------------------- */
 function el(tag, cls = "", text = "") {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -43,13 +46,12 @@ function el(tag, cls = "", text = "") {
     return e;
 }
 
-function clear(n) {
-    while (n.firstChild) n.firstChild.remove();
+function clear(node) {
+    while (node.firstChild) node.firstChild.remove();
 }
 
-
 /* ------------------------------------------------------------
-   THEMES
+   THEME HANDLING
 ------------------------------------------------------------ */
 function applyTheme() {
     const b = document.body;
@@ -70,9 +72,8 @@ function applyTheme() {
     }
 }
 
-
 /* ------------------------------------------------------------
-   MAIN RENDER FUNCTION
+   SAFE RENDER ENTRY POINT
 ------------------------------------------------------------ */
 function renderApp() {
     applyTheme();
@@ -84,21 +85,20 @@ function renderApp() {
     wrap.appendChild(renderSidebar());
     wrap.appendChild(renderMainScreen());
 
+    // overlays
     MsgUI.render();
     SettingsUI.render();
 }
 
-
 /* ------------------------------------------------------------
-   SAFE INITIALIZATION — FIXED
+   SAFE INITIALIZATION (FIXED)
 ------------------------------------------------------------ */
 window.addEventListener("DOMContentLoaded", () => {
-
-    // First-time setup: create a default community
+    // Initialize default community if none exist
     if (!Logic.Storage.communities ||
         Object.keys(Logic.Storage.communities).length === 0) {
 
-        const create = Logic.Community.create(
+        Logic.Community.create(
             "VolcanoChat",
             "The main lava pit of chaos.",
             "🌋"
@@ -112,7 +112,6 @@ window.addEventListener("DOMContentLoaded", () => {
     renderApp();
 });
 
-
 /* ============================================================
    SIDEBAR
 ============================================================ */
@@ -121,11 +120,11 @@ function renderSidebar() {
     box.style.background = "rgba(255,255,255,0.9)";
     box.style.color = "#4a1f00";
 
-    // header
     const top = el("div", "flex justify-between items-center mb-2");
     top.appendChild(el("h2", "font-bold text-lg text-orange-800", "Volcanoes"));
 
-    const add = el("button",
+    const add = el(
+        "button",
         "text-xs bg-orange-300 hover:bg-orange-400 px-2 py-1 rounded",
         "+ New"
     );
@@ -133,7 +132,6 @@ function renderSidebar() {
         if (!Logic.Storage.activeUser) return alert("Log in first");
         MsgUI.showCreateCommunity();
     };
-
     top.appendChild(add);
     box.appendChild(top);
 
@@ -173,7 +171,6 @@ function renderSidebar() {
     filtered.forEach(comm => abox.appendChild(renderCommunityListItem(comm)));
 
     box.appendChild(abox);
-
     return box;
 }
 
@@ -196,10 +193,8 @@ function renderCommunityListItem(comm) {
         left.appendChild(el("span", "text-blue-500 text-xs ml-1", "✔"));
 
     div.appendChild(left);
-
     return div;
 }
-
 
 /* ============================================================
    MAIN SCREEN
@@ -219,14 +214,12 @@ function renderMainScreen() {
     box.appendChild(renderRoastPanel());
     box.appendChild(renderCommunityHeader());
     box.appendChild(renderCommentsSection());
-
     return box;
 }
 
-
-/* ------------------------------------------------------------
-   WELCOME PANEL
------------------------------------------------------------- */
+/* ============================================================
+   WELCOME / LOGIN / SIGNUP
+============================================================ */
 function renderWelcome() {
     const wrap = el("div", "p-4 mb-4 rounded shadow");
     wrap.style.background = "rgba(255,250,240,0.95)";
@@ -249,10 +242,6 @@ function renderWelcome() {
     return wrap;
 }
 
-
-/* ============================================================
-   LOGIN / SIGNUP
-============================================================ */
 function renderLogin() {
     const wrap = el("div", "p-4 rounded shadow mb-4 bg-white text-black");
     wrap.appendChild(el("h2", "text-xl mb-2", "Log In"));
@@ -290,7 +279,6 @@ function renderLogin() {
     wrap.appendChild(back);
     return wrap;
 }
-
 
 function renderSignup() {
     const wrap = el("div", "p-4 rounded shadow mb-4 bg-white text-black");
@@ -337,7 +325,6 @@ function renderSignup() {
     return wrap;
 }
 
-
 /* ============================================================
    GREETING HEADER
 ============================================================ */
@@ -345,12 +332,13 @@ function renderGreeting() {
     const user = Logic.Storage.activeUser;
     const acc = Logic.Storage.accounts[user];
 
-    const wrap = el("div", "p-3 mb-4 rounded shadow bg-[rgba(255,250,240,0.95)]");
+    // ★★★★★ IMPORTANT FIX: add "relative"
+    const wrap = el("div", "relative p-3 mb-4 rounded shadow bg-[rgba(255,250,240,0.95)]");
 
     const row = el("div", "flex items-center gap-3");
     row.appendChild(el("span", "text-4xl", acc.avatar));
 
-    const textWrap = el("div", "");
+    const textWrap = el("div");
     const g = el("p", "text-3xl font-bold text-orange-900", UI.greetingText);
     g.style.fontFamily = "Comic Sans MS";
     textWrap.appendChild(g);
@@ -361,8 +349,9 @@ function renderGreeting() {
     row.appendChild(textWrap);
     wrap.appendChild(row);
 
-    // icons
+    // top-right icons
     const icons = el("div", "absolute right-3 top-3 flex flex-col gap-2");
+
     const bell = el("button", "text-3xl", "🔔");
     bell.onclick = () => MsgUI.showNotifications();
 
@@ -375,7 +364,6 @@ function renderGreeting() {
 
     return wrap;
 }
-
 
 /* ============================================================
    ROAST PANEL
@@ -407,7 +395,6 @@ function renderRoastPanel() {
     return wrap;
 }
 
-
 /* ============================================================
    COMMUNITY HEADER
 ============================================================ */
@@ -418,23 +405,21 @@ function renderCommunityHeader() {
 
     const wrap = el("div", "p-4 rounded shadow mb-3 bg-white text-black");
 
-    const title = el("h2", "text-2xl font-bold text-orange-900",
-        `${comm.icon} ${comm.name}`
-    );
+    const title = el("h2", "text-2xl font-bold text-orange-900", `${comm.icon} ${comm.name}`);
     if (comm.verified)
         title.appendChild(el("span", "text-blue-500 ml-1 text-sm", "✔ Verified"));
 
     wrap.appendChild(title);
     wrap.appendChild(el("p", "text-sm text-gray-600", comm.description));
 
-    // join/leave
     if (Logic.Storage.activeUser) {
         const user = Logic.Storage.activeUser;
-        const box = el("div", "mt-2");
 
+        const box = el("div", "mt-2");
         const joined = comm.members.includes(user);
 
-        const btn = el("button",
+        const btn = el(
+            "button",
             "px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm",
             joined ? "Leave" : "Join"
         );
@@ -447,9 +432,9 @@ function renderCommunityHeader() {
 
         box.appendChild(btn);
 
-        // verify button
         if (user === Logic.ADMIN) {
-            const v = el("button",
+            const v = el(
+                "button",
                 "px-3 py-1 ml-2 rounded bg-blue-200 hover:bg-blue-300 text-sm",
                 comm.verified ? "Unverify" : "Verify"
             );
@@ -463,24 +448,22 @@ function renderCommunityHeader() {
         wrap.appendChild(box);
     }
 
-    // stats
     wrap.appendChild(
-        el("p", "text-xs mt-2",
-            `Members: ${comm.members.length} | Posts: ${comments.length}`
-        )
+        el("p", "text-xs mt-2", `Members: ${comm.members.length} | Posts: ${comments.length}`)
     );
 
-    // sorting
     const s = el("div", "text-xs mt-1");
     s.appendChild(el("span", "", "Sort: "));
 
-    const hot = el("button",
+    const hot = el(
+        "button",
         UI.sort === "hot" ? "font-bold underline" : "text-gray-500",
         "Hot"
     );
     hot.onclick = () => { UI.sort = "hot"; renderApp(); };
 
-    const newest = el("button",
+    const newest = el(
+        "button",
         UI.sort === "new" ? "font-bold underline ml-1" : "text-gray-500 ml-1",
         "New"
     );
@@ -488,11 +471,10 @@ function renderCommunityHeader() {
 
     s.appendChild(hot);
     s.appendChild(newest);
-    wrap.appendChild(s);
 
+    wrap.appendChild(s);
     return wrap;
 }
-
 
 /* ============================================================
    COMMENTS SECTION
@@ -500,7 +482,6 @@ function renderCommunityHeader() {
 function renderCommentsSection() {
     const slug = UI.currentCommunity;
     const list = Logic.Storage.comments[slug] || [];
-
     const wrap = el("div", "p-4 rounded shadow bg-white text-black mb-4");
 
     wrap.appendChild(el("h2", "text-xl mb-2 text-orange-800", "Comments"));
@@ -548,11 +529,9 @@ function renderCommentsSection() {
         row.appendChild(down);
 
         div.appendChild(row);
-
         wrap.appendChild(div);
     });
 
-    // input
     const input = el("input", "border rounded px-3 py-2 w-full mt-3");
     input.placeholder = "Write a comment...";
     input.value = UI.commentInput;
