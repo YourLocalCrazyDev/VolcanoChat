@@ -1,10 +1,10 @@
 /* ============================================================
    VolcanoChat — MAIN UI SYSTEM (FULL ORANGE THEME VERSION)
-   ============================================================ */
+============================================================ */
 
-Logic = window.VolcanoLogic;
-MsgUI = window.MessageUI;
-SettingsUI = window.SettingsUI;
+let Logic = window.VolcanoLogic;
+let MsgUI = window.MessageUI;
+let SettingsUI = window.SettingsUI;
 
 /* ------------------------------------------------------------
    UI STATE
@@ -30,7 +30,10 @@ const UI = {
 
     // greeting
     greetingText: "",
-    shake: false
+    shake: false,
+
+    // roast
+    roastText: ""
 };
 
 const appRoot = document.getElementById("app-root");
@@ -56,12 +59,10 @@ function applyTheme() {
     const b = document.body;
 
     if (UI.theme === "A") {
-        // 🔥 FULL BRIGHT ORANGE LAVA THEME
         b.className =
             "min-h-screen text-slate-900 " +
             "bg-gradient-to-br from-orange-100 via-orange-200 to-orange-300";
 
-        // CSS vars used everywhere
         document.documentElement.style.setProperty("--panel-bg", "rgba(255,240,225,0.95)");
         document.documentElement.style.setProperty("--panel-border", "#ffb36b");
         document.documentElement.style.setProperty("--panel-shadow", "rgba(255,150,80,0.35)");
@@ -79,7 +80,6 @@ function applyTheme() {
             "min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-red-900 text-orange-50";
     }
 
-    // volcanic shake
     if (UI.shake) {
         b.classList.add("shake");
         setTimeout(() => b.classList.remove("shake"), 600);
@@ -109,7 +109,6 @@ function renderApp() {
 ------------------------------------------------------------ */
 window.addEventListener("DOMContentLoaded", () => {
 
-    // Create default VolcanoChat community if missing
     if (!Logic.Storage.communities ||
         Object.keys(Logic.Storage.communities).length === 0) {
 
@@ -124,7 +123,6 @@ window.addEventListener("DOMContentLoaded", () => {
         UI.currentCommunity = Object.keys(Logic.Storage.communities)[0];
     }
 
-    // restore greeting if logged in
     if (Logic.Storage.activeUser) {
         UI.greetingText =
             `${Logic.randomGreeting()}, ${Logic.Storage.activeUser}!`;
@@ -155,7 +153,6 @@ function renderSidebar() {
     top.appendChild(add);
     box.appendChild(top);
 
-    // search bar
     const search = el("input", "border rounded px-2 py-1 w-full mb-2");
     search.placeholder = "Search...";
     search.value = UI.communitySearch;
@@ -165,7 +162,6 @@ function renderSidebar() {
     };
     box.appendChild(search);
 
-    // trending
     const all = Object.values(Logic.Storage.communities);
     const trending = [...all].sort(
         (a, b) =>
@@ -181,7 +177,6 @@ function renderSidebar() {
     });
     box.appendChild(tbox);
 
-    // all
     box.appendChild(el("h3", "text-xs font-semibold mb-1 orange-title", "All Volcanoes"));
 
     const abox = el("div", "max-h-56 overflow-y-auto");
@@ -375,7 +370,6 @@ function renderGreeting() {
     row.appendChild(textWrap);
     wrap.appendChild(row);
 
-    // buttons
     const icons = el("div", "absolute right-3 top-3 flex gap-3");
 
     const bell = el("button", "text-3xl", "🔔");
@@ -442,7 +436,6 @@ function renderCommunityHeader() {
     wrap.appendChild(title);
     wrap.appendChild(el("p", "text-sm opacity-80", comm.description));
 
-    // join/leave
     if (Logic.Storage.activeUser) {
         const user = Logic.Storage.activeUser;
         const box = el("div", "mt-2");
@@ -483,7 +476,6 @@ function renderCommunityHeader() {
         `Members: ${comm.members.length} | Posts: ${comments.length}`
     ));
 
-    // sorting
     const s = el("div", "text-xs mt-1");
     s.appendChild(el("span", "", "Sort: "));
 
@@ -537,7 +529,6 @@ function renderCommentsSection() {
         div.appendChild(top);
         div.appendChild(el("p", "", c.text));
 
-        // votes
         const row = el("div", "flex gap-2 text-xs mt-1");
 
         const voteKey = `${Logic.Storage.activeUser}|${c.id}`;
@@ -565,7 +556,6 @@ function renderCommentsSection() {
         wrap.appendChild(div);
     });
 
-    // input
     const input = el("input", "border rounded px-3 py-2 w-full mt-3");
     input.placeholder = "Write a comment...";
     input.value = UI.commentInput;
