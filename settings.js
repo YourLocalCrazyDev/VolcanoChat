@@ -2,7 +2,7 @@
    VolcanoChat — SETTINGS UI (Display Name + Description)
 ============================================================ */
 
-Logic = window.VolcanoLogic;
+let Logic = window.VolcanoLogic;
 
 window.SettingsUI = {
     open: false,
@@ -132,7 +132,6 @@ window.SettingsUI = {
         const user = Logic.Storage.activeUser;
         const acc = Logic.Storage.accounts[user];
 
-        // Avatar grid
         const label = document.createElement("p");
         label.textContent = "Choose Avatar:";
         label.className = "mb-1";
@@ -160,7 +159,6 @@ window.SettingsUI = {
 
         wrap.appendChild(grid);
 
-        // Description
         const dLabel = document.createElement("p");
         dLabel.textContent = "Description:";
         dLabel.className = "mt-4 mb-1";
