@@ -2,6 +2,9 @@
    VolcanoChat — CORE LOGIC SYSTEM (Non-React Version)
 ============================================================ */
 
+// FIX: Explicitly reference the global Storage object created in storage.js
+const Storage = window.Storage; 
+
 const ADMIN = "johnny big balls";
 
 /* ------------------------------------------------------------
@@ -306,5 +309,5 @@ window.VolcanoLogic = {
     randomGreeting,
     isBanned,
     ADMIN,
-    Storage // This is correctly referencing the global Storage variable
+    Storage // Exporting Storage for debug/direct access in other UIs
 };
