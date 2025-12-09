@@ -1,46 +1,20 @@
 /* ============================================================
-   VolcanoChat — MAIN SCREEN UI (Non-React, FINAL FIXED VERSION)
-   ============================================================ */
+   VolcanoChat — MESSAGE & OVERLAY UI (FINAL FIXED VERSION)
+   Handles:
+   - Notifications overlay
+   - Profile overlay
+   - Create Community overlay
+   - Reports + admin actions
+   - Toast popup utility
+============================================================ */
 
 /* ------------------------------------------------------------
-   GLOBAL IMPORTS
-   (Do NOT use const/let — these must attach to the global scope)
+   GLOBAL IMPORT — MUST NOT USE const/let
 ------------------------------------------------------------ */
 Logic = window.VolcanoLogic;
-MsgUI = window.MessageUI;
-SettingsUI = window.SettingsUI;
 
-/* ------------------------------------------------------------
-   GLOBAL UI STATE
------------------------------------------------------------- */
-// FIX: UI is now a global variable (no const/let) so other scripts can access it.
-UI = {
-    menu: "none",
-    theme: localStorage.getItem("themeMode") || "A",
-    sort: "hot",
-
-    // login + signup
-    loginUser: "",
-    loginPass: "",
-    signupUser: "",
-    signupPass: "",
-    selectedAvatar: "😐",
-
-    // comments
-    commentInput: "",
-
-    // communities
-    communitySearch: "",
-    currentCommunity: null,
-
-    // greeting
-    greetingText: "",
-    shake: false,
-    roastText: ""
-};
-
-const appRoot = document.getElementById("app-root");
-
+/* Safe helper (UI.js also has this, but we redefine it here to prevent errors
+   if message.js loads first on GitHub Pages) */
 function el(tag, cls = "", text = "") {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -48,600 +22,364 @@ function el(tag, cls = "", text = "") {
     return e;
 }
 
-function clear(node) {
-    while (node.firstChild) node.firstChild.remove();
-}
+/* ------------------------------------------------------------
+   PATCH MISSING LOGIC FUNCTIONS 
+------------------------------------------------------------ */
+// The missing functions were added directly to Logic in logic.js.
+// The clumsy Logic.communityIconList patch has been removed, 
+// and all references now use Logic.communityIcons directly.
 
 /* ------------------------------------------------------------
-   THEME HANDLING
+   MESSAGE UI CORE
 ------------------------------------------------------------ */
-function applyTheme() {
-    const b = document.body;
+window.MessageUI = {
+    showNotif: false,
+    showProfUser: null,
+    showCreate: false,
+    toastTimer: null,
+    newCommName: "",
+    newCommDesc: "",
+    // FIX: Initialize newCommIcon safely using Logic.communityIcons
+    newCommIcon: Logic.communityIcons ? Logic.communityIcons[0] : "🔥", 
 
-    // Reset base classes
-    b.className = "min-h-screen";
+    /* ====== PUBLIC OVERLAY OPENERS ====== */
+    showNotifications() {
+        this.showNotif = true;
+        this.render();
+    },
 
-    if (UI.theme === "A") {
-        b.classList.add("bg-orange-50", "text-slate-900");
-    } else if (UI.theme === "B") {
-        b.classList.add("bg-slate-950", "text-orange-50");
-    } else {
-        b.classList.add(
-            "bg-gradient-to-br",
-            "from-slate-900",
-            "via-orange-900",
-            "to-red-900",
-            "text-orange-50"
-        );
-    }
+    showProfile(user) {
+        this.showProfUser = user;
+        this.render();
+    },
 
-    if (UI.shake) {
-        b.classList.add("shake");
-        setTimeout(() => b.classList.remove("shake"), 600);
-        UI.shake = false;
-    }
-}
+    showCreateCommunity() {
+        this.showCreate = true;
+        this.render();
+    },
 
-/* ------------------------------------------------------------
-   SAFE RENDER ENTRY POINT
------------------------------------------------------------- */
-function renderApp() {
-    applyTheme();
-    clear(appRoot);
+    closeAll() {
+        this.showNotif = false;
+        this.showProfUser = null;
+        this.showCreate = false;
+        this.render();
+    },
 
-    const wrap = el("div", "max-w-5xl mx-auto w-full flex gap-6 p-4");
-    appRoot.appendChild(wrap);
-
-    wrap.appendChild(renderSidebar());
-    wrap.appendChild(renderMainScreen());
-
-    // overlays
-    MsgUI.render();
-    SettingsUI.render();
-}
-window.renderApp = renderApp; // Make it globally accessible for other scripts
-
-/* ------------------------------------------------------------
-   SAFE INITIALIZATION (FIXED)
------------------------------------------------------------- */
-window.addEventListener("DOMContentLoaded", () => {
-    // Initialize default community if none exist
-    if (!Logic.Storage.communities ||
-        Object.keys(Logic.Storage.communities).length === 0) {
-
-        Logic.Community.create(
-            "VolcanoChat",
-            "The main lava pit of chaos.",
-            "🌋"
-        );
-
-        UI.currentCommunity = "volcanochat";
-    } else {
-        // Set to the first community if a default isn't set, ensuring no null error
-        if (!UI.currentCommunity || !Logic.Storage.communities[UI.currentCommunity]) {
-            UI.currentCommunity = Object.keys(Logic.Storage.communities)[0];
+    /* ====== TOAST ====== */
+    toast(msg, duration = 2000) {
+        let box = document.getElementById("toast-box");
+        if (!box) {
+            box = document.createElement("div");
+            box.id = "toast-box";
+            box.style.position = "fixed";
+            box.style.bottom = "20px";
+            box.style.left = "50%";
+            box.style.transform = "translateX(-50%)";
+            box.style.padding = "12px 20px";
+            box.style.background = "rgba(0,0,0,0.7)";
+            box.style.color = "white";
+            box.style.borderRadius = "10px";
+            box.style.fontSize = "16px";
+            box.style.zIndex = "99999";
+            document.body.appendChild(box);
         }
-    }
+        box.textContent = msg;
+        box.style.display = "block";
 
-    // Call the main render function to start the app
-    renderApp();
-});
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => { box.style.display = "none"; }, duration);
+    },
 
-/* ============================================================
-   SIDEBAR
-============================================================ */
-function renderSidebar() {
-    const isDark = UI.theme !== "A";
-    const box = el("div", "w-64 p-3 rounded-lg shadow text-sm");
-    
-    // Theme-based styling for sidebar
-    box.className = `w-64 p-3 rounded-lg shadow text-sm ${
-        isDark ? "bg-slate-900 text-orange-50" : "bg-white text-slate-900"
-    }`;
+    /* ====== MASTER RENDER ====== */
+    render() {
+        this.renderNotifications();
+        this.renderProfile();
+        this.renderCreate();
+    },
 
-    const top = el("div", "flex justify-between items-center mb-2");
-    top.appendChild(el("h2", `font-bold text-lg ${isDark ? "text-orange-400" : "text-orange-800"}`, "Volcanoes"));
+    /* ============================================================
+       NOTIFICATIONS OVERLAY
+    ============================================================= */
+    renderNotifications() {
+        const o = document.getElementById("notifications-overlay");
+        const c = document.getElementById("notifications-container");
 
-    const add = el(
-        "button",
-        `text-xs px-2 py-1 rounded transition-colors ${
-            isDark ? "bg-orange-600 hover:bg-orange-500 text-white" : "bg-orange-300 hover:bg-orange-400"
-        }`,
-        "+ New"
-    );
-    add.onclick = () => {
-        if (!Logic.Storage.activeUser) return alert("Log in first");
-        MsgUI.showCreateCommunity();
-    };
-    top.appendChild(add);
-    box.appendChild(top);
-
-    // search
-    const search = el("input", "border rounded px-2 py-1 w-full mb-2 text-black");
-    search.placeholder = "Search...";
-    search.value = UI.communitySearch;
-    search.oninput = e => {
-        UI.communitySearch = e.target.value;
-        renderApp();
-    };
-    box.appendChild(search);
-
-    // trending
-    const all = Object.values(Logic.Storage.communities);
-    const trending = [...all].sort(
-        (a, b) =>
-            (Logic.Storage.comments[b.slug] || []).length -
-            (Logic.Storage.comments[a.slug] || []).length
-    );
-
-    box.appendChild(el("h3", `text-xs font-semibold mt-3 ${isDark ? "text-amber-500" : "text-amber-700"}`, "Trending"));
-
-    const tbox = el("div", "max-h-56 overflow-y-auto mb-2");
-    trending.forEach(comm => {
-        tbox.appendChild(renderCommunityListItem(comm));
-    });
-    box.appendChild(tbox);
-
-    // all communities
-    box.appendChild(el("h3", `text-xs font-semibold mt-3 ${isDark ? "text-amber-500" : "text-amber-700"}`, "All"));
-
-    const abox = el("div", "max-h-56 overflow-y-auto");
-    const filtered = all.filter(c =>
-        c.name.toLowerCase().includes(UI.communitySearch.toLowerCase())
-    );
-    filtered.forEach(comm => abox.appendChild(renderCommunityListItem(comm)));
-
-    box.appendChild(abox);
-    return box;
-}
-
-function renderCommunityListItem(comm) {
-    const active = UI.currentCommunity === comm.slug;
-    const isDark = UI.theme !== "A";
-
-    const div = el(
-        "div",
-        `flex justify-between px-2 py-1 mb-1 rounded cursor-pointer 
-         ${active 
-            ? isDark ? "bg-orange-900" : "bg-orange-100" 
-            : isDark ? "hover:bg-slate-700" : "hover:bg-orange-50"
-        }`
-    );
-
-    div.onclick = () => {
-        UI.currentCommunity = comm.slug;
-        renderApp();
-    };
-
-    const left = el("span", "", `${comm.icon} ${comm.name}`);
-    if (comm.verified)
-        left.appendChild(el("span", "text-blue-400 text-xs ml-1", "✔"));
-
-    div.appendChild(left);
-    return div;
-}
-
-/* ============================================================
-   MAIN SCREEN
-============================================================ */
-function renderMainScreen() {
-    const user = Logic.Storage.activeUser;
-    const box = el("div", "flex-1");
-
-    if (!user) {
-        box.appendChild(renderWelcome());
-        box.appendChild(renderLoginSignupMenu());
-    } else {
-        box.appendChild(renderHeader());
-        box.appendChild(renderRoastWidget());
-        if (UI.currentCommunity) {
-            box.appendChild(renderCommunityHeader());
-            box.appendChild(renderCommentBox());
-            box.appendChild(renderCommentList());
-        } else {
-            box.appendChild(el("p", "p-4 text-lg", "Select a Volcano to join the chaos."));
+        o.classList.toggle("hidden", !this.showNotif);
+        if (!this.showNotif) {
+            c.innerHTML = "";
+            return;
         }
-    }
-    
-    return box;
-}
 
-/* ============================================================
-   WELCOME SCREEN
-============================================================ */
-function renderWelcome() {
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-900/50 text-white" : "bg-white text-slate-900";
-    
-    const wrap = el("div", `p-6 rounded-lg shadow mb-6 ${bg}`);
-    wrap.appendChild(el("h1", "text-4xl font-extrabold text-red-500 mb-2", "🔥 VolcanoChat 🌋"));
-    wrap.appendChild(el("p", "text-xl mb-4", "The most chaotic place to chat online."));
-    wrap.appendChild(el("p", "mb-4", "Please log in or sign up to begin."));
+        c.innerHTML = "";
+        c.className = "bg-black bg-opacity-70 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto relative text-white";
 
-    const loginBtn = el("button", "bg-orange-500 hover:bg-orange-600 px-6 py-2 rounded text-lg text-white mr-4", "Log In");
-    loginBtn.onclick = () => {
-        UI.menu = "login";
-        renderApp();
-    };
-    
-    const signupBtn = el("button", "bg-gray-300 hover:bg-gray-400 px-6 py-2 rounded text-lg text-black", "Sign Up");
-    signupBtn.onclick = () => {
-        UI.menu = "signup";
-        renderApp();
-    };
-
-    wrap.appendChild(loginBtn);
-    wrap.appendChild(signupBtn);
-
-    return wrap;
-}
-
-function renderLoginSignupMenu() {
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-800 text-white" : "bg-white text-slate-900";
-
-    const wrap = el("div", `p-4 rounded-lg shadow ${bg}`);
-    wrap.appendChild(el("h2", "text-2xl mb-3", "Access the Lava Pit"));
-
-    if (UI.menu === "login") {
-        return renderLogin();
-    } else if (UI.menu === "signup") {
-        return renderSignup();
-    } else {
-        return el("div", "text-center", "Select an option above.");
-    }
-}
-
-function renderLogin() {
-    const wrap = el("div", "p-4 rounded shadow mb-4");
-
-    const u = el("input", "border px-3 py-2 w-full mb-2 text-black");
-    u.placeholder = "Username";
-    u.value = UI.loginUser;
-    u.oninput = e => UI.loginUser = e.target.value;
-
-    const p = el("input", "border px-3 py-2 w-full mb-4 text-black");
-    p.placeholder = "Password";
-    p.type = "password";
-    p.value = UI.loginPass;
-    p.oninput = e => UI.loginPass = e.target.value;
-
-    const btn = el("button", "bg-red-500 hover:bg-red-600 px-4 py-2 w-full rounded text-white mb-2", "Log In");
-    btn.onclick = () => {
-        const res = Logic.Auth.login(UI.loginUser, UI.loginPass);
-        if (res === "OK") {
-            UI.menu = "none";
-            UI.greetingText = `${Logic.randomGreeting()}, ${Logic.Storage.activeUser}!`;
-            renderApp();
-        } else if (res === "NO_ACCOUNT") {
-            MsgUI.toast("Account not found.");
-            document.body.classList.add("shake");
-            setTimeout(() => document.body.classList.remove("shake"), 600);
-        } else if (res === "WRONG_PASSWORD") {
-            MsgUI.toast("Wrong password.");
-            document.body.classList.add("shake");
-            setTimeout(() => document.body.classList.remove("shake"), 600);
-        } else if (res === "BANNED") {
-            alert("You are banned.");
-        }
-    };
-
-    const back = el("button", "bg-gray-300 hover:bg-gray-400 px-4 py-2 w-full rounded text-black", "Back");
-    back.onclick = () => {
-        UI.menu = "none";
-        renderApp();
-    };
-
-    wrap.appendChild(el("h3", "text-xl mb-3", "Log In"));
-    wrap.appendChild(u);
-    wrap.appendChild(p);
-    wrap.appendChild(btn);
-    wrap.appendChild(back);
-    return wrap;
-}
-
-function renderSignup() {
-    const wrap = el("div", "p-4 rounded shadow mb-4");
-
-    const u = el("input", "border px-3 py-2 w-full mb-2 text-black");
-    u.placeholder = "Username";
-    u.value = UI.signupUser;
-    u.oninput = e => UI.signupUser = e.target.value;
-
-    const p = el("input", "border px-3 py-2 w-full mb-2 text-black");
-    p.placeholder = "Password";
-    p.type = "password";
-    p.value = UI.signupPass;
-    p.oninput = e => UI.signupPass = e.target.value;
-
-    wrap.appendChild(el("h3", "text-xl mb-3", "Sign Up"));
-    wrap.appendChild(u);
-    wrap.appendChild(p);
-
-    const avWrap = el("div", "flex flex-wrap gap-2 text-2xl max-h-32 overflow-y-auto mb-2 p-2 rounded bg-gray-100");
-    Logic.avatarList.forEach(av => {
-        const b = el("button", `px-2 py-1 rounded transition-colors ${UI.selectedAvatar === av ? "bg-yellow-400 text-black" : "bg-white hover:bg-gray-200"}`, av);
-        b.onclick = () => {
-            UI.selectedAvatar = av;
-            renderApp();
+        const close = document.createElement("button");
+        close.textContent = "❌";
+        close.className = "absolute top-2 right-3 text-3xl";
+        close.onclick = () => {
+            this.showNotif = false;
+            this.render();
         };
-        avWrap.appendChild(b);
-    });
-    wrap.appendChild(avWrap);
+        c.appendChild(close);
 
-    const btn = el("button", "bg-blue-500 hover:bg-blue-600 px-4 py-2 w-full rounded text-white mb-2", "Create Account");
-    btn.onclick = () => {
-        const res = Logic.Auth.signup(UI.signupUser, UI.signupPass, UI.selectedAvatar);
-        if (res === "OK") {
-            UI.menu = "none";
-            UI.greetingText = `${Logic.randomGreeting()}, ${Logic.Storage.activeUser}!`;
-            renderApp();
-        } else if (res === "EXISTS") {
-            MsgUI.toast("User already exists.");
-        } else if (res === "INVALID") {
-            MsgUI.toast("Username and password must be at least 3 characters.");
-        } else if (res === "BANNED") {
-            alert("You are banned.");
-        }
-    };
+        /* Header */
+        const h = el("h2", "text-2xl mb-3", "Notifications");
+        c.appendChild(h);
 
-    const back = el("button", "bg-gray-300 hover:bg-gray-400 px-4 py-2 w-full rounded text-black", "Back");
-    back.onclick = () => {
-        UI.menu = "none";
-        renderApp();
-    };
+        /* Latest comments */
+        c.appendChild(el("h3", "text-xl mb-2", "Latest Comments"));
 
-    wrap.appendChild(btn);
-    wrap.appendChild(back);
-    return wrap;
-}
+        Logic.Comments.getRecent(8).forEach(cmt => {
+            const banned = Logic.isBanned(cmt.user);
+            const p = el("p", "mb-1 text-sm");
+            p.innerHTML = `
+                <span class="${banned ? "text-red-400" : ""}">
+                    ${cmt.avatar} <b>${cmt.user}</b>
+                </span>: ${cmt.text}
+                <span class="text-xs text-gray-400">
+                    [${Logic.Storage.communities[cmt.community]?.name}]
+                </span>
+            `;
+            c.appendChild(p);
+        });
 
-/* ============================================================
-   LOGGED-IN HEADER
-============================================================ */
-function renderHeader() {
-    const user = Logic.Storage.activeUser;
-    const acc = Logic.Storage.accounts[user];
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-900/50 text-white" : "bg-white text-slate-900";
+        /* Admin reports */
+        if (Logic.Storage.activeUser === Logic.ADMIN) {
+            const title = el("h3", "text-xl mt-4 mb-2", "Reports");
+            c.appendChild(title);
 
-    const wrap = el("div", `p-4 rounded-lg shadow mb-3 flex justify-between items-center ${bg}`);
+            const unresolved = Logic.Storage.reports.filter(r => !r.resolved);
 
-    const left = el("div", "flex items-center gap-3");
-    left.appendChild(el("div", "text-4xl", acc.avatar));
-
-    const nameBox = el("div", "");
-    nameBox.appendChild(el("p", "text-xl font-bold", user));
-    if (acc.mood) {
-        nameBox.appendChild(el("p", "text-xs italic", `Mood: ${acc.mood}`));
-    }
-    left.appendChild(nameBox);
-    wrap.appendChild(left);
-
-    const right = el("div", "flex items-center gap-3");
-
-    // Notifications Button
-    const notifBtn = el("button", `text-3xl p-1 rounded transition-colors ${isDark ? "hover:bg-slate-700" : "hover:bg-gray-100"}`);
-    notifBtn.textContent = "🔔";
-    notifBtn.onclick = () => MsgUI.showNotifications();
-    right.appendChild(notifBtn);
-
-    // Settings Button
-    const settingsBtn = el("button", `text-3xl p-1 rounded transition-colors ${isDark ? "hover:bg-slate-700" : "hover:bg-gray-100"}`);
-    settingsBtn.textContent = "⚙️";
-    settingsBtn.onclick = () => SettingsUI.show();
-    right.appendChild(settingsBtn);
-
-    wrap.appendChild(right);
-    return wrap;
-}
-
-/* ============================================================
-   ROAST WIDGET
-============================================================ */
-function renderRoastWidget() {
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-800 text-white" : "bg-gray-100 text-slate-900";
-
-    const wrap = el("div", `p-4 rounded-lg shadow mb-4 ${bg}`);
-    wrap.appendChild(el("h3", "text-lg font-bold mb-2", "Volcano Roast 🌋"));
-
-    const roast = el("button", "bg-yellow-500 hover:bg-yellow-600 text-black w-full py-2 rounded mb-2", "Roast Me");
-    roast.onclick = () => {
-        UI.roastText = Logic.Roast.normal();
-        renderApp();
-    };
-
-    const volcano = el("button", "bg-red-500 hover:bg-red-600 text-white w-full py-2 rounded", "VOLCANIC ROAST 🌋");
-    volcano.onclick = () => {
-        UI.shake = true;
-        UI.roastText = Logic.Roast.volcanic();
-        renderApp();
-    };
-    
-    wrap.appendChild(roast);
-    wrap.appendChild(volcano);
-
-    if (UI.roastText) {
-        const roastDisplay = el("p", "mt-3 text-lg font-mono p-2 rounded", UI.roastText);
-        roastDisplay.style.background = isDark ? "rgba(255, 165, 0, 0.2)" : "rgba(255, 165, 0, 0.4)";
-        wrap.appendChild(roastDisplay);
-    }
-    return wrap;
-}
-
-/* ============================================================
-   COMMUNITY HEADER
-============================================================ */
-function renderCommunityHeader() {
-    const slug = UI.currentCommunity;
-    const comm = Logic.Storage.communities[slug];
-    const comments = Logic.Storage.comments[slug] || [];
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-900/50 text-white" : "bg-white text-slate-900";
-
-    const wrap = el("div", `p-4 rounded-lg shadow mb-3 border-t-4 border-accent-${comm.accent || 0} ${bg}`);
-    
-    const title = el("h2", `text-2xl font-bold ${isDark ? "text-orange-400" : "text-orange-900"}`, `${comm.icon} ${comm.name}`);
-    if (comm.verified)
-        title.appendChild(el("span", "text-blue-400 text-base ml-2", "✔"));
-    wrap.appendChild(title);
-
-    wrap.appendChild(el("p", "text-sm italic mb-2", comm.description));
-    wrap.appendChild(el("p", "text-xs mb-2", `Members: ${comm.members.length} | Posts: ${comments.length}`));
-
-    const user = Logic.Storage.activeUser;
-    if (user) {
-        const isMember = comm.members.includes(user);
-        const joinBtn = el("button", 
-            `text-xs px-3 py-1 rounded transition-colors ${
-                isMember 
-                ? "bg-red-500 hover:bg-red-600 text-white" 
-                : "bg-green-500 hover:bg-green-600 text-white"
-            }`,
-            isMember ? "Leave" : "Join"
-        );
-        joinBtn.onclick = () => {
-            if (isMember) {
-                Logic.Community.leave(slug);
-                MsgUI.toast(`Left ${comm.name}`);
-            } else {
-                Logic.Community.join(slug);
-                MsgUI.toast(`Joined ${comm.name}`);
+            if (unresolved.length === 0) {
+                c.appendChild(el("p", "", "No pending reports."));
+                return;
             }
-            renderApp();
-        };
-        wrap.appendChild(joinBtn);
-    }
 
-    return wrap;
-}
+            unresolved.forEach(r => {
+                const box = el("div", "border border-gray-500 rounded p-2 mb-2 text-sm");
 
-/* ============================================================
-   COMMENT INPUT
-============================================================ */
-function renderCommentBox() {
-    const slug = UI.currentCommunity;
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-900/50" : "bg-white";
+                box.innerHTML = `
+                    <p><b>Target:</b> 
+                        <span class="${Logic.isBanned(r.target) ? "text-red-400" : ""}">
+                            ${r.target}
+                        </span>
+                    </p>
+                    <p><b>Reporter:</b> ${r.reporter}</p>
+                    <p><b>Reason:</b> ${r.reason}</p>
+                    <p class="text-xs">${new Date(r.time).toLocaleString()}</p>
+                `;
 
-    const wrap = el("div", `p-4 rounded-lg shadow mb-4 ${bg}`);
-    
-    const input = el("input", "border rounded px-3 py-2 w-full text-black");
-    input.placeholder = "Write a comment...";
-    input.value = UI.commentInput;
-    input.oninput = e => UI.commentInput = e.target.value;
+                const row = el("div", "flex gap-2 mt-2");
 
-    const post = el("button", "mt-2 bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded text-white w-full", "Post Comment");
-    post.onclick = () => {
-        const res = Logic.Comments.post(slug, UI.commentInput);
-        if (res === "OK") {
-            UI.commentInput = "";
-            renderApp();
-        } else if (res === "BLOCKED") {
-            MsgUI.toast("Post failed (Banned or Empty).");
+                /* Ban */
+                const ban = el("button", "bg-red-500 px-2 py-1 rounded text-xs", "Ban");
+                ban.onclick = () => {
+                    const mins = prompt("Ban duration in minutes (0 = permanent):", "60");
+                    if (mins === null) return;
+                    const dur = parseInt(mins);
+                    if (isNaN(dur) || dur < 0) return alert("Invalid.");
+
+                    Logic.Mod.banUser(r, dur);
+                    this.toast("User banned.");
+                    this.renderNotifications();
+                };
+                row.appendChild(ban);
+
+                /* Warn */
+                const warn = el("button", "bg-yellow-400 px-2 py-1 rounded text-xs text-black", "Warn");
+                warn.onclick = () => {
+                    Logic.Mod.warnUser(r);
+                    this.toast("Warning issued.");
+                    this.renderNotifications();
+                };
+                row.appendChild(warn);
+
+                /* Ignore */
+                const ign = el("button", "bg-gray-400 px-2 py-1 rounded text-xs", "Ignore");
+                ign.onclick = () => {
+                    Logic.Mod.ignoreReport(r);
+                    this.toast("Report ignored.");
+                    this.renderNotifications();
+                };
+                row.appendChild(ign);
+
+                box.appendChild(row);
+                c.appendChild(box);
+            });
         }
-    };
+    },
 
-    wrap.appendChild(input);
-    wrap.appendChild(post);
-    return wrap;
-}
+    /* ============================================================
+       PROFILE OVERLAY
+    ============================================================= */
+    renderProfile() {
+        const o = document.getElementById("profile-overlay");
+        const c = document.getElementById("profile-container");
 
-/* ============================================================
-   COMMENT LIST
-============================================================ */
-function renderCommentList() {
-    const slug = UI.currentCommunity;
-    const comments = Logic.Storage.comments[slug] || [];
-    const isDark = UI.theme !== "A";
-    const bg = isDark ? "bg-slate-900/50" : "bg-white";
+        o.classList.toggle("hidden", !this.showProfUser);
+        if (!this.showProfUser) {
+            c.innerHTML = "";
+            return;
+        }
 
-    const wrap = el("div", `p-4 rounded-lg shadow ${bg}`);
-    wrap.appendChild(el("h3", "text-lg font-bold mb-3", "Lava Flow (Comments)"));
+        const user = this.showProfUser;
+        const acc = Logic.Storage.accounts[user];
+        
+        // Safety check if account doesn't exist (e.g., user was reset)
+        if (!acc) {
+            this.showProfUser = null;
+            this.render();
+            return;
+        }
 
-    // Sorting buttons
-    const sortWrap = el("div", "flex gap-3 mb-3");
-    
-    const makeSortBtn = (sortType, label) => {
-        const btn = el("button", 
-            `text-sm px-3 py-1 rounded transition-colors ${
-                UI.sort === sortType 
-                ? "bg-orange-500 text-white" 
-                : isDark ? "bg-slate-700 hover:bg-slate-600 text-white" : "bg-gray-200 hover:bg-gray-300 text-black"
-            }`, 
-            label
+        c.innerHTML = "";
+        c.className =
+            "bg-black bg-opacity-40 p-6 rounded-xl w-96 text-center max-h-[80vh] overflow-y-auto text-white relative";
+
+        const close = el("button", "absolute top-4 right-4 text-4xl", "❌");
+        close.onclick = () => {
+            this.showProfUser = null;
+            this.render();
+        };
+        c.appendChild(close);
+
+        c.appendChild(el("div", "text-6xl mb-3", acc.avatar));
+
+        const h = el("h2", "text-3xl font-bold mb-2", user);
+        if (Logic.isBanned(user)) h.classList.add("text-red-400");
+        if (user === Logic.ADMIN)
+            h.appendChild(el("span", "text-yellow-300 ml-2 text-xl", "[ADMIN]"));
+        c.appendChild(h);
+
+        c.appendChild(el("p", "mt-1 mb-3 text-sm",
+            `Warnings: ${Logic.Storage.warnings[user] || 0}`
+        ));
+        c.appendChild(el("p", "mb-4", `Mood: ${acc.mood || "None"}`));
+
+        if (Logic.Storage.activeUser && Logic.Storage.activeUser !== user) {
+            const btn = el("button", "bg-red-500 px-4 py-2 rounded mb-4", "Report User");
+            btn.onclick = () => {
+                Logic.Mod.submitReport(user);
+                this.toast("Report submitted.");
+            };
+            c.appendChild(btn);
+        }
+
+        c.appendChild(el("h3", "text-xl mb-2", "Comments:"));
+
+        const list = el(
+            "div",
+            "bg-black bg-opacity-30 rounded p-3 max-h-64 overflow-y-auto text-left text-sm"
         );
-        btn.onclick = () => {
-            UI.sort = sortType;
-            renderApp();
+
+        Logic.Comments.getAllByUser(user).forEach(cm => {
+            const p = el("p", "mb-2");
+            p.innerHTML = `
+                ${cm.avatar} <b>${cm.user}</b>: ${cm.text}
+                <span class="text-blue-300">(${Logic.Storage.communities[cm.community]?.name})</span>
+            `;
+            list.appendChild(p);
+        });
+
+        c.appendChild(list);
+    },
+
+    /* ============================================================
+       CREATE COMMUNITY
+    ============================================================= */
+    renderCreate() {
+        const o = document.getElementById("create-overlay");
+        const c = document.getElementById("create-container");
+
+        o.classList.toggle("hidden", !this.showCreate);
+        if (!this.showCreate) {
+            c.innerHTML = "";
+            return;
+        }
+
+        c.innerHTML = "";
+        c.className =
+            "bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto relative text-white";
+
+        const close = el("button", "absolute top-2 right-3 text-3xl", "❌");
+        close.onclick = () => {
+            this.showCreate = false;
+            this.render();
         };
-        return btn;
-    };
-    
-    sortWrap.appendChild(makeSortBtn("hot", "Hot 🔥"));
-    sortWrap.appendChild(makeSortBtn("new", "New 🆕"));
-    wrap.appendChild(sortWrap);
+        c.appendChild(close);
 
-    let sortedComments = [...comments];
+        c.appendChild(el("h2", "text-2xl mb-3", "Create a Volcano"));
 
-    if (UI.sort === "hot") {
-        sortedComments.sort((a, b) => b.score - a.score);
-    } else if (UI.sort === "new") {
-        sortedComments.sort((a, b) => b.time - a.time);
+        // name
+        c.appendChild(el("label", "text-sm", "Community name"));
+        const name = el("input", "w-full border rounded px-3 py-2 mb-3 text-black");
+        name.placeholder = "John's Jamboree";
+        name.value = this.newCommName || ""; // FIX: Retain input value
+        name.oninput = e => (this.newCommName = e.target.value);
+        c.appendChild(name);
+
+        // desc
+        c.appendChild(el("label", "text-sm", "Description"));
+        const desc = document.createElement("textarea");
+        desc.className = "w-full border rounded px-3 py-2 mb-3 text-black";
+        desc.rows = 3;
+        desc.placeholder = "Describe your community...";
+        desc.value = this.newCommDesc || ""; // FIX: Retain input value
+        desc.oninput = e => (this.newCommDesc = e.target.value);
+        c.appendChild(desc);
+
+        // icon picker
+        c.appendChild(el("label", "text-sm block mb-1", "Choose icon"));
+
+        const iconBox = el(
+            "div",
+            "flex flex-wrap gap-2 text-2xl bg-slate-800 rounded p-2 max-h-40 overflow-y-auto mb-4"
+        );
+
+        // FIX: Use Logic.communityIcons directly
+        Logic.communityIcons.forEach(ic => {
+            const btn = el(
+                "button",
+                `px-2 py-1 rounded ${
+                    this.newCommIcon === ic ? "bg-orange-400" : "bg-slate-700"
+                }`,
+                ic
+            );
+            btn.onclick = () => {
+                this.newCommIcon = ic;
+                this.renderCreate();
+            };
+            iconBox.appendChild(btn);
+        });
+        c.appendChild(iconBox);
+
+        // create button
+        const createBtn = el(
+            "button",
+            "bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded w-full",
+            "Create Volcano"
+        );
+        createBtn.onclick = () => {
+            const name = this.newCommName?.trim();
+            if (!name) return alert("Community needs a name.");
+
+            const slug = Logic.slugify(name);
+            if (!slug) return alert("Invalid name.");
+            if (Logic.Storage.communities[slug]) return alert("Already exists.");
+            if (!Logic.Storage.activeUser) return alert("You must be logged in to create a community.");
+
+            Logic.Community.create(
+                name,
+                this.newCommDesc?.trim() || "A VolcanoChat community.",
+                this.newCommIcon
+            );
+
+            // FIX: Use window prefix for global variables
+            window.UI.currentCommunity = slug;
+            this.showCreate = false;
+            this.toast("Community created!");
+            window.renderApp(); // FIX: Use window prefix for global function
+        };
+        c.appendChild(createBtn);
     }
-    
-    if (sortedComments.length === 0) {
-        wrap.appendChild(el("p", "text-center py-4 text-gray-500", "No comments yet. Start the eruption!"));
-        return wrap;
-    }
-
-    sortedComments.forEach(c => {
-        const div = el("div", `p-3 mb-2 rounded border-l-4 border-orange-500 ${isDark ? "bg-slate-800" : "bg-gray-50"}`);
-
-        // User and time
-        const header = el("div", "flex justify-between items-center text-xs mb-1");
-        const userLink = el("span", `font-bold cursor-pointer ${Logic.isBanned(c.user) ? "text-red-400" : (isDark ? "text-orange-400" : "text-orange-700")}`, `${c.avatar} ${c.user}`);
-        userLink.onclick = e => {
-            e.stopPropagation();
-            MsgUI.showProfile(c.user);
-        };
-        header.appendChild(userLink);
-        header.appendChild(el("span", "text-gray-500", new Date(c.time).toLocaleTimeString()));
-        div.appendChild(header);
-
-        // Text
-        div.appendChild(el("p", "", c.text));
-
-        // votes
-        const row = el("div", "flex gap-2 text-xs mt-1 items-center");
-
-        const voteKey = `${Logic.Storage.activeUser}|${c.id}`;
-        const prev = Logic.Storage.votes[voteKey] || 0;
-
-        const up = el("button", `text-lg transition-colors ${prev === 1 ? "font-bold text-orange-600" : "text-gray-400 hover:text-orange-500"}`, "▲");
-        up.onclick = e => {
-            if (!Logic.Storage.activeUser) return MsgUI.toast("Log in to vote.");
-            e.stopPropagation();
-            Logic.Comments.vote(c, 1);
-            renderApp();
-        };
-
-        const down = el("button", `text-lg transition-colors ${prev === -1 ? "font-bold text-blue-600" : "text-gray-400 hover:text-blue-500"}`, "▼");
-        down.onclick = e => {
-            if (!Logic.Storage.activeUser) return MsgUI.toast("Log in to vote.");
-            e.stopPropagation();
-            Logic.Comments.vote(c, -1);
-            renderApp();
-        };
-
-        row.appendChild(up);
-        row.appendChild(el("span", `text-sm font-bold ${c.score > 0 ? "text-green-500" : c.score < 0 ? "text-red-500" : ""}`, c.score || 0));
-        row.appendChild(down);
-
-        div.appendChild(row);
-        wrap.appendChild(div);
-    });
-
-    return wrap;
-}
+};
