@@ -3,7 +3,7 @@
 ============================================================ */
 
 // FIX: Explicitly reference the global Storage object created in storage.js
-const Storage = window.Storage; 
+const Storage = window.Storage;
 
 const ADMIN = "johnny big balls";
 
@@ -72,7 +72,7 @@ function randomGreeting() {
 }
 
 function slugify(name) {
-    if (!name) return "";
+    if (!name) return ""; // Added safety check
     return name
         .toLowerCase()
         .trim()
@@ -81,27 +81,30 @@ function slugify(name) {
         .replace(/^-+|-+$/g, "");
 }
 
-function isBanned(user) {
-    const ban = Storage.bans[user];
-    if (!ban) return false;
-    if (ban.until === null) return true; // Permanent
-    return ban.until > Date.now();
+function generateAccentClass(icon) {
+    if (!icon) return "border-accent-0";
+    const code = icon.codePointAt(0) || 0;
+    return `border-accent-${code % 5}`;
+}
+
+function isBanned(username) {
+    const info = Storage.bans[username];
+    if (!info) return false;
+    if (!info.until) return true; // permanent ban
+    return info.until > Date.now();
 }
 
 /* ------------------------------------------------------------
-   AUTHENTICATION
+   AUTH LOGIC
 ------------------------------------------------------------ */
 
 const Auth = {
     signup(username, password, avatar) {
+        if (!username.trim() || !password.trim()) return "INVALID";
         if (isBanned(username)) return "BANNED";
-        if (!username || !password || username.length < 3) return "INVALID";
-        const ok = Storage.createAccount(username, password, avatar);
-        if (ok) {
-            Storage.login(username, password);
-            return "OK";
-        }
-        return "EXISTS";
+        if (!Storage.createAccount(username, password, avatar)) return "EXISTS";
+        Storage.activeUser = username;
+        return "OK";
     },
 
     login(username, password) {
@@ -113,39 +116,39 @@ const Auth = {
         Storage.logout();
     },
 
-    setAvatar(user, avatar) {
-        Storage.updateAccount(user, { avatar });
-    },
-
     setMood(mood) {
+        if (!Storage.activeUser) return;
         Storage.updateAccount(Storage.activeUser, { mood });
     },
 
-    setTheme(theme) {
-        localStorage.setItem("themeMode", theme);
+    changeAvatar(avatar) {
+        if (!Storage.activeUser) return;
+        Storage.updateAccount(Storage.activeUser, { avatar });
     }
 };
 
 /* ------------------------------------------------------------
-   ROAST SYSTEM
+   ROASTS
 ------------------------------------------------------------ */
+
 const Roast = {
     normal() {
-        const user = Storage.activeUser || "Someone";
-        const list = Storage.warnings[user] > 3 ? volcanicRoasts : roasts;
-        const fn = list[Math.floor(Math.random() * list.length)];
-        return fn(user);
+        const u = Storage.activeUser;
+        if (!u) return "";
+        // FIX: Use volcanic list if user has many warnings
+        const list = Storage.warnings[u] > 3 ? volcanicRoasts : roasts;
+        return list[Math.floor(Math.random() * list.length)](u);
     },
 
     volcanic() {
-        const user = Storage.activeUser || "Someone";
-        const fn = volcanicRoasts[Math.floor(Math.random() * volcanicRoasts.length)];
-        return fn(user);
+        const u = Storage.activeUser;
+        if (!u) return "";
+        return volcanicRoasts[Math.floor(Math.random() * volcanicRoasts.length)](u);
     }
 };
 
 /* ------------------------------------------------------------
-   COMMUNITIES
+   COMMUNITY LOGIC
 ------------------------------------------------------------ */
 
 const Community = {
@@ -163,8 +166,7 @@ const Community = {
             createdAt: Date.now(),
             mods: [Storage.activeUser],
             members: [Storage.activeUser],
-            verified: false,
-            accent: Math.floor(Math.random() * 5)
+            verified: false
         });
 
         return { ok: true, slug };
@@ -175,7 +177,9 @@ const Community = {
         if (!c) return;
         const u = Storage.activeUser;
         if (!u) return;
-        if (!c.members.includes(u)) c.members.push(u);
+
+        if (!c.members.includes(u))
+            c.members.push(u);
     },
 
     leave(slug) {
@@ -183,7 +187,15 @@ const Community = {
         if (!c) return;
         const u = Storage.activeUser;
         if (!u) return;
+
         c.members = c.members.filter(m => m !== u);
+    },
+
+    toggleVerified(slug) {
+        if (Storage.activeUser !== ADMIN) return;
+        const c = Storage.communities[slug];
+        if (!c) return;
+        c.verified = !c.verified;
     }
 };
 
@@ -193,42 +205,61 @@ const Community = {
 
 const Comments = {
     post(slug, text) {
-        const user = Storage.activeUser;
-        if (!user || !text.trim() || isBanned(user)) return "BLOCKED";
+        const u = Storage.activeUser;
+        // FIX: Check for banned user and return status
+        if (!u || !text.trim() || isBanned(u)) return "BLOCKED"; 
 
-        const cmt = {
+        const acc = Storage.accounts[u];
+
+        const obj = {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-            user,
-            text: text.trim(),
+            user: u,
+            avatar: acc.avatar,
+            mood: acc.mood,
+            text,
             time: Date.now(),
             score: 0,
-            community: slug,
-            avatar: Storage.accounts[user].avatar
+            community: slug
         };
 
-        Storage.addComment(slug, cmt);
+        Storage.addComment(slug, obj);
         return "OK";
     },
 
-    vote(comment, value) {
-        const user = Storage.activeUser;
-        if (!user) return;
+    vote(comment, direction) {
+        const u = Storage.activeUser;
+        if (!u) return;
 
-        const voteKey = `${user}|${comment.id}`;
-        const prevVote = Storage.votes[voteKey] || 0;
+        const key = `${u}|${comment.id}`;
+        const prev = Storage.votes[key] || 0;
+        let newVote = direction;
 
-        if (prevVote === value) {
-            // Already voted this way, so unvote
-            Storage.setVote(voteKey, 0);
-            comment.score -= value;
-        } else {
-            // New vote or change vote
-            comment.score -= prevVote; // Remove previous vote's impact
-            comment.score += value; // Add new vote's impact
-            Storage.setVote(voteKey, value);
-        }
+        if (prev === direction) newVote = 0;
+
+        const delta = newVote - prev;
+
+        Storage.votes[key] = newVote;
+
+        // update score
+        const arr = Storage.comments[comment.community];
+        const idx = arr.findIndex(c => c.id === comment.id);
+        if (idx !== -1) arr[idx].score += delta;
     },
 
+    sort(list, mode) {
+        const arr = [...list];
+        if (mode === "new") {
+            return arr.sort((a, b) => b.time - a.time);
+        }
+        // hot
+        return arr.sort((a, b) => {
+            const s = (b.score || 0) - (a.score || 0);
+            if (s !== 0) return s;
+            return b.time - a.time;
+        });
+    },
+    
+    // FIX: Added helper functions used by message.js
     getRecent(amount = 8) {
         const all = [];
         for (const slug in Storage.comments) {
@@ -285,7 +316,8 @@ const Mod = {
         report.resolved = true;
         report.action = "ignore";
     },
-
+    
+    // FIX: Added helper function used by message.js/admin panel
     clearAllComments() {
         for (const slug in Storage.comments) {
             Storage.comments[slug] = [];
@@ -305,9 +337,10 @@ window.VolcanoLogic = {
     Community,
     Comments,
     Mod,
-    slugify,
+    Storage,
     randomGreeting,
+    slugify,
+    generateAccentClass,
     isBanned,
-    ADMIN,
-    Storage // Exporting Storage for debug/direct access in other UIs
+    ADMIN
 };
