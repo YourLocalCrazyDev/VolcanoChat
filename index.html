@@ -5,59 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VolcanoChat 🌋</title>
 
-    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="/VolcanoChat/styles.css" />
 </head>
 
 <body class="min-h-screen bg-orange-50 text-slate-900">
-    
-    <!-- APP ROOT -->
+
     <div id="app-root"></div>
 
-    <!-- SETTINGS OVERLAY -->
+
     <div id="settings-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40 flex justify-center items-center">
+         class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
         <div id="settings-container"
-            class="bg-slate-900 text-white p-6 rounded-xl shadow-xl flex gap-6 max-h-[80vh] overflow-y-auto">
+             class="bg-slate-900 text-white p-6 rounded-xl shadow-xl flex">
         </div>
     </div>
 
-    <!-- NOTIFICATIONS OVERLAY -->
     <div id="notifications-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="notifications-container"
-            class="bg-black bg-opacity-70 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto text-white relative">
-        </div>
+         class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="notifications-container"></div>
     </div>
 
-    <!-- PROFILE OVERLAY -->
     <div id="profile-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="profile-container"
-            class="bg-black bg-opacity-40 p-6 rounded-xl w-96 max-h-[80vh] overflow-y-auto text-white relative">
-        </div>
+         class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="profile-container"></div>
     </div>
 
-    <!-- CREATE COMMUNITY OVERLAY -->
     <div id="create-overlay"
-        class="hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-40 flex justify-center items-center">
-        <div id="create-container"
-            class="bg-slate-900 bg-opacity-90 rounded-xl p-6 w-[480px] max-h-[80vh] overflow-y-auto text-white relative">
-        </div>
+         class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex justify-center items-center">
+        <div id="create-container"></div>
     </div>
 
-    <!-- TOASTS -->
-    <div id="toast-box" style="display:none;"></div>
 
-    <!-- SCRIPT ORDER (IMPORTANT!) -->
-    <script src="storage.js"></script>
-    <script src="logic.js"></script>
-    <script src="message.js"></script>
-    <script src="settings.js"></script>
-    <script src="ui.js"></script>
+    <script src="/VolcanoChat/storage.js"></script>
+    <script src="/VolcanoChat/logic.js"></script>
+    <script src="/VolcanoChat/message.js"></script>
+    <script src="/VolcanoChat/settings.js"></script>
+    <script src="/VolcanoChat/ui.js"></script>
 
 </body>
 </html>
