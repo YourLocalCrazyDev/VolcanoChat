@@ -8,7 +8,7 @@
     Perfect for preventing tampering on GitHub Pages.
 */
 
-// FIX: Removed 'const' so this variable is globally available.
+// FIX: Removed 'const' so Storage is correctly created as a global variable.
 Storage = {
     accounts: {},          // { username: { password, avatar, mood } }
     activeUser: null,      // currently logged-in username
