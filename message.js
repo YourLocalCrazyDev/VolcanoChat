@@ -23,9 +23,9 @@ function el(tag, cls = "", text = "") {
 }
 
 /* ------------------------------------------------------------
-   PATCH MISSING LOGIC FUNCTIONS (GitHub Pages fixes)
+   PATCH MISSING LOGIC FUNCTIONS (Ensuring backwards compatibility)
 ------------------------------------------------------------ */
-// These are included for robustness, though now defined in logic.js
+// These are included for robustness, now largely defined in logic.js
 if (!Logic.Comments.getRecent) {
     Logic.Comments.getRecent = function (amount = 8) {
         const all = [];
@@ -81,11 +81,6 @@ if (!Logic.Mod.ignoreReport) {
     };
 }
 
-/* Safety: logic.js exposes communityIcons, not communityIconList */
-if (!Logic.communityIconList) {
-    Logic.communityIconList = Logic.communityIcons;
-}
-
 /* ------------------------------------------------------------
    MESSAGE UI CORE
 ------------------------------------------------------------ */
@@ -96,7 +91,8 @@ window.MessageUI = {
     toastTimer: null,
     newCommName: "",
     newCommDesc: "",
-    newCommIcon: Logic.communityIconList[0], // Initialize icon selection
+    // FIX: Initialize newCommIcon safely using Logic.communityIcons
+    newCommIcon: Logic.communityIcons ? Logic.communityIcons[0] : "🔥", 
 
     /* ====== PUBLIC OVERLAY OPENERS ====== */
     showNotifications() {
@@ -183,7 +179,7 @@ window.MessageUI = {
         c.appendChild(h);
 
         /* Latest comments */
-        c.appendChild(el("h3", "text-xl mb-2", "Latest Comments"));
+        c.appendChild(el("h3", "text-xl mt-4 mb-2", "Latest Comments"));
 
         Logic.Comments.getRecent(8).forEach(cmt => {
             const banned = Logic.isBanned(cmt.user);
@@ -281,7 +277,7 @@ window.MessageUI = {
         const user = this.showProfUser;
         const acc = Logic.Storage.accounts[user];
 
-        if (!acc) { // Safety check for deleted/missing user
+        if (!acc) { // Safety check
             this.showProfUser = null;
             this.render();
             return;
@@ -369,7 +365,7 @@ window.MessageUI = {
         c.appendChild(el("label", "text-sm", "Community name"));
         const name = el("input", "w-full border rounded px-3 py-2 mb-3 text-black");
         name.placeholder = "John's Jamboree";
-        name.value = this.newCommName;
+        name.value = this.newCommName; // Keep input value consistent on re-render
         name.oninput = e => (this.newCommName = e.target.value);
         c.appendChild(name);
 
@@ -379,7 +375,7 @@ window.MessageUI = {
         desc.className = "w-full border rounded px-3 py-2 mb-3 text-black";
         desc.rows = 3;
         desc.placeholder = "Describe your community...";
-        desc.value = this.newCommDesc;
+        desc.value = this.newCommDesc; // Keep input value consistent on re-render
         desc.oninput = e => (this.newCommDesc = e.target.value);
         c.appendChild(desc);
 
@@ -391,7 +387,8 @@ window.MessageUI = {
             "flex flex-wrap gap-2 text-2xl bg-slate-800 rounded p-2 max-h-40 overflow-y-auto mb-4"
         );
 
-        Logic.communityIconList.forEach(ic => {
+        // Use the correct array exported from logic.js
+        Logic.communityIcons.forEach(ic => {
             const btn = el(
                 "button",
                 `px-2 py-1 rounded ${
@@ -422,18 +419,19 @@ window.MessageUI = {
             if (Logic.Storage.communities[slug]) return alert("Already exists.");
             if (!Logic.Storage.activeUser) return alert("You must be logged in to create a community.");
 
+
             Logic.Community.create(
                 name,
                 this.newCommDesc?.trim() || "A VolcanoChat community.",
                 this.newCommIcon
             );
 
-            // Access the global UI object (which ui.js makes available)
-            UI.currentCommunity = slug; 
+            // Assuming UI is a global variable from ui.js
+            window.UI.currentCommunity = slug; 
             this.showCreate = false;
             this.toast("Community created!");
-            // Global render function defined in ui.js
-            renderApp();
+            // Assuming renderApp is a global function from ui.js
+            window.renderApp(); 
         };
         c.appendChild(createBtn);
     }
