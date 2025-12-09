@@ -8,7 +8,8 @@
     Perfect for preventing tampering on GitHub Pages.
 */
 
-const Storage = {
+// FIX: Removed 'const' so this variable is globally available.
+Storage = {
     accounts: {},          // { username: { password, avatar, mood } }
     activeUser: null,      // currently logged-in username
 
