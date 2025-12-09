@@ -25,6 +25,7 @@ function el(tag, cls = "", text = "") {
 /* ------------------------------------------------------------
    PATCH MISSING LOGIC FUNCTIONS (GitHub Pages fixes)
 ------------------------------------------------------------ */
+// These are included for robustness, though now defined in logic.js
 if (!Logic.Comments.getRecent) {
     Logic.Comments.getRecent = function (amount = 8) {
         const all = [];
@@ -93,6 +94,9 @@ window.MessageUI = {
     showProfUser: null,
     showCreate: false,
     toastTimer: null,
+    newCommName: "",
+    newCommDesc: "",
+    newCommIcon: Logic.communityIconList[0], // Initialize icon selection
 
     /* ====== PUBLIC OVERLAY OPENERS ====== */
     showNotifications() {
@@ -277,6 +281,12 @@ window.MessageUI = {
         const user = this.showProfUser;
         const acc = Logic.Storage.accounts[user];
 
+        if (!acc) { // Safety check for deleted/missing user
+            this.showProfUser = null;
+            this.render();
+            return;
+        }
+
         c.innerHTML = "";
         c.className =
             "bg-black bg-opacity-40 p-6 rounded-xl w-96 text-center max-h-[80vh] overflow-y-auto text-white relative";
@@ -359,6 +369,7 @@ window.MessageUI = {
         c.appendChild(el("label", "text-sm", "Community name"));
         const name = el("input", "w-full border rounded px-3 py-2 mb-3 text-black");
         name.placeholder = "John's Jamboree";
+        name.value = this.newCommName;
         name.oninput = e => (this.newCommName = e.target.value);
         c.appendChild(name);
 
@@ -368,6 +379,7 @@ window.MessageUI = {
         desc.className = "w-full border rounded px-3 py-2 mb-3 text-black";
         desc.rows = 3;
         desc.placeholder = "Describe your community...";
+        desc.value = this.newCommDesc;
         desc.oninput = e => (this.newCommDesc = e.target.value);
         c.appendChild(desc);
 
@@ -408,6 +420,7 @@ window.MessageUI = {
             const slug = Logic.slugify(name);
             if (!slug) return alert("Invalid name.");
             if (Logic.Storage.communities[slug]) return alert("Already exists.");
+            if (!Logic.Storage.activeUser) return alert("You must be logged in to create a community.");
 
             Logic.Community.create(
                 name,
@@ -415,9 +428,11 @@ window.MessageUI = {
                 this.newCommIcon
             );
 
-            UI.currentCommunity = slug;
+            // Access the global UI object (which ui.js makes available)
+            UI.currentCommunity = slug; 
             this.showCreate = false;
             this.toast("Community created!");
+            // Global render function defined in ui.js
             renderApp();
         };
         c.appendChild(createBtn);
